@@ -1,0 +1,23 @@
+{
+  "parent": "selective_enchantment_transfer:first_transfer",
+  "display": {
+    "icon": {
+      "item": "minecraft:experience_bottle"
+    },
+    "title": {
+      "translate": "advancements.selective_enchantment_transfer.heavy_lifting.title"
+    },
+    "description": {
+      "translate": "advancements.selective_enchantment_transfer.heavy_lifting.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}
