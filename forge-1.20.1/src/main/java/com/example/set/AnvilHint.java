@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -12,6 +13,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -40,11 +42,14 @@ public class AnvilHint {
             if (!shown.isEmpty()) shown.remove(player.getUUID());
             return;
         }
-        int key = n * 100 + min + (splittable ? 100000 : 0);
+        Enchantment only = n == 1 ? EnchantmentHelper.getEnchantments(left).keySet().iterator().next() : null;
+        boolean cantSplit = only != null && !splittable;
+        int key = Objects.hash(n, min, splittable, only == null ? "" : only.getDescriptionId());
         Integer prev = shown.get(player.getUUID());
         if (prev == null || prev.intValue() != key) {
             shown.put(player.getUUID(), key);
-            if (splittable) player.displayClientMessage(Component.translatable("message.selective_enchantment_transfer.too_few_books"), true);
+            if (cantSplit) player.displayClientMessage(Component.translatable("message.selective_enchantment_transfer.cant_split", Component.translatable(only.getDescriptionId())), true);
+            else if (splittable) player.displayClientMessage(Component.translatable("message.selective_enchantment_transfer.too_few_books"), true);
             else player.displayClientMessage(Component.translatable("message.selective_enchantment_transfer.too_few", n, min), true);
         }
     }

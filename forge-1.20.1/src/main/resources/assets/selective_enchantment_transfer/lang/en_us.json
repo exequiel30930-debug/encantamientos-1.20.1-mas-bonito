@@ -18,7 +18,7 @@
   "gui.selective_enchantment_transfer.mode_copy_tip": "The item keeps its enchantments. Costs %s× the normal price.",
   "gui.selective_enchantment_transfer.mode_all_tip": "Applies to the enchantments you select next. The ones already selected keep their mode.",
   "gui.selective_enchantment_transfer.cant_copy": "Treasure enchantments can't be copied",
-  "gui.selective_enchantment_transfer.keep_one": "Keep one or split",
+  "gui.selective_enchantment_transfer.keep_one": "Same book",
   "gui.selective_enchantment_transfer.settings": "Settings",
   "message.selective_enchantment_transfer.not_enough_xp": "You don't have enough experience levels.",
   "message.selective_enchantment_transfer.config_saved": "Settings saved.",
@@ -79,6 +79,13 @@
   "gui.selective_enchantment_transfer.tooltip.books_title": "%s books",
   "gui.selective_enchantment_transfer.tooltip.book_n": "Book %s",
   "gui.selective_enchantment_transfer.books_needed": "Books: %s/%s",
-  "message.selective_enchantment_transfer.too_few_books": "Not enough enchantments: put at least 2 books in the right slot to split levels.",
-  "message.selective_enchantment_transfer.not_enough_books": "You don't have enough books for that split."
+  "message.selective_enchantment_transfer.too_few_books": "To split levels, put at least 2 books in the right slot.",
+  "message.selective_enchantment_transfer.not_enough_books": "You don't have enough books for that split.",
+  "gui.selective_enchantment_transfer.why.title": "Can't transfer yet",
+  "gui.selective_enchantment_transfer.why.none": "Select at least one enchantment.",
+  "gui.selective_enchantment_transfer.why.same": "Moving every enchantment of a book without splitting would just give you the same book. Leave one in the book or split a level.",
+  "gui.selective_enchantment_transfer.why.books": "Not enough books: you need %s and have %s.",
+  "gui.selective_enchantment_transfer.why.break": "Copying would break the item: it has %s durability left and the copy costs %s.",
+  "gui.selective_enchantment_transfer.why.xp": "Not enough experience: you need %s levels and have %s.",
+  "message.selective_enchantment_transfer.cant_split": "%s can't be split: it only has one level."
 }

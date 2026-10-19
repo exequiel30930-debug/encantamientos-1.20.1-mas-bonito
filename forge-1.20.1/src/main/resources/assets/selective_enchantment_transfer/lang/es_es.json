@@ -18,7 +18,7 @@
   "gui.selective_enchantment_transfer.mode_copy_tip": "El objeto conserva sus encantamientos. Cuesta %s× el precio normal.",
   "gui.selective_enchantment_transfer.mode_all_tip": "Se aplica a los encantamientos que elijas a partir de ahora. Los que ya elegiste mantienen su modo.",
   "gui.selective_enchantment_transfer.cant_copy": "Los encantamientos de tesoro no se pueden copiar",
-  "gui.selective_enchantment_transfer.keep_one": "Deja uno o separa",
+  "gui.selective_enchantment_transfer.keep_one": "Mismo libro",
   "gui.selective_enchantment_transfer.settings": "Ajustes",
   "message.selective_enchantment_transfer.not_enough_xp": "No tienes suficientes niveles de experiencia.",
   "message.selective_enchantment_transfer.config_saved": "Ajustes guardados.",
@@ -79,6 +79,13 @@
   "gui.selective_enchantment_transfer.tooltip.books_title": "%s libros",
   "gui.selective_enchantment_transfer.tooltip.book_n": "Libro %s",
   "gui.selective_enchantment_transfer.books_needed": "Libros: %s/%s",
-  "message.selective_enchantment_transfer.too_few_books": "Faltan encantamientos: pon al menos 2 libros a la derecha para separar niveles.",
-  "message.selective_enchantment_transfer.not_enough_books": "No tienes libros suficientes para esa separación."
+  "message.selective_enchantment_transfer.too_few_books": "Para separar niveles, pon al menos 2 libros a la derecha.",
+  "message.selective_enchantment_transfer.not_enough_books": "No tienes libros suficientes para esa separación.",
+  "gui.selective_enchantment_transfer.why.title": "Todavía no se puede transferir",
+  "gui.selective_enchantment_transfer.why.none": "Elige al menos un encantamiento.",
+  "gui.selective_enchantment_transfer.why.same": "Mover todos los encantamientos de un libro sin separarlos solo te daría el mismo libro. Deja uno en el libro o separa algún nivel.",
+  "gui.selective_enchantment_transfer.why.books": "Faltan libros: necesitas %s y tienes %s.",
+  "gui.selective_enchantment_transfer.why.break": "Copiar rompería el objeto: le quedan %s de durabilidad y la copia gasta %s.",
+  "gui.selective_enchantment_transfer.why.xp": "No tienes experiencia suficiente: necesitas %s niveles y tienes %s.",
+  "message.selective_enchantment_transfer.cant_split": "%s no se puede separar: solo tiene un nivel."
 }

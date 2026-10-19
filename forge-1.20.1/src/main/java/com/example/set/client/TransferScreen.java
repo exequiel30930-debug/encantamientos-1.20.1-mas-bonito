@@ -57,6 +57,8 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
     private int bookCount = 0;      // libros normales disponibles
     private int maxParts = 1;       // maximo de libros en que se puede repartir un encantamiento
     private int booksNeeded = 0;    // libros de salida que haran falta
+    private List<Map<Enchantment, Integer>> outBooks = new ArrayList<>(); // contenido de cada libro de salida
+    private boolean anySplitMoved = false;
     private boolean keepOneRule = false;   // origen = libro y se moverian todos sin repartir (saldria el mismo libro)
     private boolean valid = false;
     private int cost = 0;
@@ -136,32 +138,50 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
         copied = new LinkedHashMap<>();
         partsMap = new LinkedHashMap<>();
         booksNeeded = 0;
+        anySplitMoved = false;
         for (Map.Entry<Enchantment, Integer> e : enchants) {
             Boolean mode = selected.get(TransferMenu.idOf(e.getKey()));
             if (mode == null) continue;
             int[] parts = partsFor(e);
             partsMap.put(e.getKey(), parts);
-            booksNeeded = Math.max(booksNeeded, parts.length);
-            if (mode.booleanValue()) copied.put(e.getKey(), e.getValue()); else moved.put(e.getKey(), e.getValue());
+            if (mode.booleanValue()) copied.put(e.getKey(), e.getValue());
+            else { moved.put(e.getKey(), e.getValue()); if (parts.length > 1) anySplitMoved = true; }
         }
+        outBooks = TransferMenu.buildBooks(partsMap);
+        booksNeeded = outBooks.size();
         boolean any = !moved.isEmpty() || !copied.isEmpty();
         cost = TransferMenu.totalCost(st, moved, copied);
         wear = TransferMenu.wearPoints(st, menu.getSource(), copied);
         wearOk = copied.isEmpty() || TransferMenu.canPayWear(st, menu.getSource(), copied);
 
         boolean sourceIsBook = menu.getSource().is(Items.ENCHANTED_BOOK);
-        keepOneRule = sourceIsBook && !moved.isEmpty() && moved.size() >= enchants.size() && booksNeeded < 2;
+        keepOneRule = sourceIsBook && !moved.isEmpty() && moved.size() >= enchants.size() && !anySplitMoved;
         valid = any && !keepOneRule && booksNeeded <= bookCount;
 
         if (!any) {
             resultStack = ItemStack.EMPTY;
         } else {
             ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
-            for (Map.Entry<Enchantment, int[]> e : partsMap.entrySet())
-                EnchantedBookItem.addEnchantment(book, new EnchantmentInstance(e.getKey(), e.getValue()[0]));
+            for (Map.Entry<Enchantment, Integer> e : outBooks.get(0).entrySet())
+                EnchantedBookItem.addEnchantment(book, new EnchantmentInstance(e.getKey(), e.getValue()));
             book.setCount(Math.max(1, booksNeeded));
             resultStack = book;
         }
+    }
+
+    /** Por que no se puede transferir todavia (para el tooltip del boton). */
+    private List<Component> whyNot() {
+        List<Component> r = new ArrayList<>();
+        r.add(trc("why.title").withStyle(ChatFormatting.WHITE));
+        if (moved.isEmpty() && copied.isEmpty()) { r.add(trc("why.none").withStyle(ChatFormatting.GRAY)); return r; }
+        if (keepOneRule) r.add(trc("why.same").withStyle(ChatFormatting.RED));
+        if (booksNeeded > bookCount) r.add(trc("why.books", booksNeeded, bookCount).withStyle(ChatFormatting.RED));
+        if (!wearOk) {
+            ItemStack src = menu.getSource();
+            r.add(trc("why.break", Math.max(0, src.getMaxDamage() - src.getDamageValue()), wear).withStyle(ChatFormatting.RED));
+        }
+        if (!canPay()) r.add(trc("why.xp", cost, playerLevels()).withStyle(ChatFormatting.RED));
+        return r;
     }
 
     // ---------- distribucion de una fila (la usan el dibujo y el raton) ----------
@@ -219,6 +239,8 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
                 tip.add(trc("tooltip.wear_total", wear, Math.max(0, src.getMaxDamage() - src.getDamageValue() - wear)).withStyle(wearOk ? ChatFormatting.GOLD : ChatFormatting.RED));
             }
             tipc(g, tip, mx, my);
+        } else if (!canTransfer() && inBox(mx, my, x + TB_X, y + TB_Y, TB_W, TB_H)) {
+            tipc(g, whyNot(), mx, my);
         } else if (overSplit(row, mx, my)) {
             Map.Entry<Enchantment, Integer> e = enchants.get(row);
             int[] parts = partsFor(e);
@@ -251,12 +273,11 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
             if (booksNeeded > 1) {
                 List<Component> tip = new ArrayList<>();
                 tip.add(trc("tooltip.books_title", booksNeeded).withStyle(ChatFormatting.WHITE));
-                for (int i = 0; i < booksNeeded; i++) {
+                for (int i = 0; i < outBooks.size(); i++) {
                     StringBuilder names = new StringBuilder();
-                    for (Map.Entry<Enchantment, int[]> pe : partsMap.entrySet()) {
-                        if (pe.getValue().length <= i) continue;
+                    for (Map.Entry<Enchantment, Integer> pe : outBooks.get(i).entrySet()) {
                         if (names.length() > 0) names.append(", ");
-                        names.append(pe.getKey().getFullname(pe.getValue()[i]).getString());
+                        names.append(pe.getKey().getFullname(pe.getValue()).getString());
                     }
                     tip.add(Component.literal(tr("tooltip.book_n", i + 1) + ": " + names).withStyle(ChatFormatting.GRAY));
                 }

@@ -5,9 +5,9 @@ license="MIT"
 [[mods]]
 modId="selective_enchantment_transfer"
 version="${mod_version}"
-displayName="Selective Enchantment Transfer"
+displayName="!Enchanting, but More Convenient!"
 authors="Custom"
-description='''Transfer chosen enchantments from a tool to a book using the vanilla anvil. Place an enchanted tool and a book in the anvil, take the result and pick which enchantments to move.'''
+description='''Enchanting, but More Convenient'''
 
 [[dependencies.selective_enchantment_transfer]]
 modId="forge"

@@ -1,4 +1,4 @@
-# Selective Enchantment Transfer (beta, codigo fuente)
+# !Enchanting, but More Convenient! (beta, codigo fuente)
 
 Transfiere **solo los encantamientos que elijas** de un objeto a un libro, usando el yunque vanilla.
 El yunque normal sigue funcionando igual (reparar, renombrar, combinar).
@@ -19,9 +19,10 @@ Ingles (`en_us`) y espanol de Espana (`es_es`). Con cualquier otro idioma del ju
    (verde = mover, dorado = copiar). Cambiar de modo no cambia los ya marcados, asi que puedes mover unos y copiar otros en la misma transferencia. Pulsa **Transferir**.
    - **Mover**: salen del objeto y pasan al libro nuevo.
    - **Copiar**: el objeto los conserva. Cuesta 3 veces mas y desgasta la durabilidad del objeto.
-4. **Repartir niveles en varios libros**: en un encantamiento marcado de nivel 2 o mas aparece un selector (por ejemplo `2+1`) que reparte sus niveles entre libros:
-   Filo III puede ir en 1 libro (3), en 2 libros (2+1) o en 3 libros (1+1+1). Se usa un libro normal por cada libro de salida; los libros que sobren se devuelven.
-   Si el origen es un libro encantado y mueves todo, el libro de origen se consume; hace falta repartirlo en 2 o mas libros (si no, saldria el mismo libro).
+4. **Repartir niveles en varios libros**: en un encantamiento marcado de nivel 2 o mas aparece un selector (por ejemplo `2+1`) que reparte sus niveles en libros **separados**:
+   Filo III puede ir en 1 libro (3), en 2 libros (2+1: uno con Filo II y otro con Filo I) o en 3 libros (1+1+1). Los encantamientos que no repartes van juntos en un mismo libro.
+   Se gasta un libro normal por libro de salida: el de la ranura del yunque y, si hacen falta mas, los de tu inventario (solo al confirmar).
+   Si el origen es un libro encantado y mueves todo, el libro de origen se consume; hace falta repartir al menos uno (si no, saldria el mismo libro).
 5. Si cancelas, recuperas todo y no pagas nada.
 
 ## Precios (niveles de XP)

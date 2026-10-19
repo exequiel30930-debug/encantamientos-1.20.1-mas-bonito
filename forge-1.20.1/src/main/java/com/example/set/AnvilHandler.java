@@ -91,7 +91,7 @@ public class AnvilHandler {
         preview.setHoverName(Component.translatable("item.selective_enchantment_transfer.preview"));
         event.setOutput(preview);
         event.setCost(1);          // vanilla exige coste > 0; ese nivel se devuelve y el coste real se cobra en la 2a pantalla
-        event.setMaterialCost(Math.min(right.getCount(), TransferMenu.MAX_BOOKS)); // los libros pasan a la 2a pantalla (los que sobren se devuelven)
+        event.setMaterialCost(1);  // solo 1 libro aqui; si al repartir hacen falta mas, se gastan del inventario al confirmar
     }
 
     /** Solo diagnostico (ajuste debugLog): como queda el evento despues de pasar por TODOS los mods. */
@@ -115,7 +115,7 @@ public class AnvilHandler {
         if (!isTransferInput(left, right)) return;
         event.setBreakChance(0.0F); // esta accion no desgasta el yunque
         removePreviews(player);     // ya, antes de que se pueda guardar o mover
-        pending.add(new Pending(player, left.copy(), new ItemStack(Items.BOOK, Math.min(right.getCount(), TransferMenu.MAX_BOOKS))));
+        pending.add(new Pending(player, left.copy(), new ItemStack(Items.BOOK)));
     }
 
     @SubscribeEvent
