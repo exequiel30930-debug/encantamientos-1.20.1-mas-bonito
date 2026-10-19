@@ -47,12 +47,21 @@ public class AnvilHandler {
         return stack.is(Items.ENCHANTED_BOOK) && stack.hasTag() && stack.getTag().getBoolean(PREVIEW_TAG);
     }
 
-    /** Un solo objeto con N o mas encantamientos (2 por defecto) a la izquierda y un libro normal a la derecha. */
+    /** Hay algun encantamiento de nivel 2 o mas: se puede repartir sus niveles entre varios libros. */
+    public static boolean canSplit(ItemStack stack) {
+        for (int level : EnchantmentHelper.getEnchantments(stack).values()) if (level >= 2) return true;
+        return false;
+    }
+
+    /**
+     * Un solo objeto a la izquierda y libros normales a la derecha. Vale con N o mas encantamientos (2 por defecto) o,
+     * si tiene uno de nivel 2+, con al menos 2 libros (para repartir sus niveles).
+     */
     public static boolean isTransferInput(ItemStack left, ItemStack right) {
-        return !left.isEmpty() && left.getCount() == 1
-                && !left.is(Items.BOOK)
-                && right.is(Items.BOOK)
-                && EnchantmentHelper.getEnchantments(left).size() >= SetConfig.minEnchantments();
+        if (left.isEmpty() || left.getCount() != 1 || left.is(Items.BOOK) || !right.is(Items.BOOK)) return false;
+        int n = EnchantmentHelper.getEnchantments(left).size();
+        if (n >= SetConfig.minEnchantments()) return n >= 1;
+        return n >= 1 && right.getCount() >= 2 && canSplit(left);
     }
 
     private static String describe(ItemStack s) {
@@ -82,7 +91,7 @@ public class AnvilHandler {
         preview.setHoverName(Component.translatable("item.selective_enchantment_transfer.preview"));
         event.setOutput(preview);
         event.setCost(1);          // vanilla exige coste > 0; ese nivel se devuelve y el coste real se cobra en la 2a pantalla
-        event.setMaterialCost(1);  // consume solo 1 libro aunque haya una pila
+        event.setMaterialCost(Math.min(right.getCount(), TransferMenu.MAX_BOOKS)); // los libros pasan a la 2a pantalla (los que sobren se devuelven)
     }
 
     /** Solo diagnostico (ajuste debugLog): como queda el evento despues de pasar por TODOS los mods. */
@@ -106,7 +115,7 @@ public class AnvilHandler {
         if (!isTransferInput(left, right)) return;
         event.setBreakChance(0.0F); // esta accion no desgasta el yunque
         removePreviews(player);     // ya, antes de que se pueda guardar o mover
-        pending.add(new Pending(player, left.copy(), new ItemStack(Items.BOOK)));
+        pending.add(new Pending(player, left.copy(), new ItemStack(Items.BOOK, Math.min(right.getCount(), TransferMenu.MAX_BOOKS))));
     }
 
     @SubscribeEvent

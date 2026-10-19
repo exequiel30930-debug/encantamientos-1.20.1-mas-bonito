@@ -16,10 +16,9 @@
   "gui.selective_enchantment_transfer.mode_copy": "Copy",
   "gui.selective_enchantment_transfer.mode_move_tip": "The enchantments leave the item and go to the new book.",
   "gui.selective_enchantment_transfer.mode_copy_tip": "The item keeps its enchantments. Costs %s× the normal price.",
-  "gui.selective_enchantment_transfer.mode_all_tip": "Sets this mode for every enchantment. You can also change each one with its own button.",
-  "gui.selective_enchantment_transfer.tooltip.mode_toggle": "Click to change only this enchantment.",
+  "gui.selective_enchantment_transfer.mode_all_tip": "Applies to the enchantments you select next. The ones already selected keep their mode.",
   "gui.selective_enchantment_transfer.cant_copy": "Treasure enchantments can't be copied",
-  "gui.selective_enchantment_transfer.keep_one": "Leave at least one",
+  "gui.selective_enchantment_transfer.keep_one": "Keep one or split",
   "gui.selective_enchantment_transfer.settings": "Settings",
   "message.selective_enchantment_transfer.not_enough_xp": "You don't have enough experience levels.",
   "message.selective_enchantment_transfer.config_saved": "Settings saved.",
@@ -73,5 +72,13 @@
   "gui.selective_enchantment_transfer.deny.cant_copy": "Can't copy that enchantment",
   "gui.selective_enchantment_transfer.deny.cant_move": "Can't move that enchantment",
   "gui.selective_enchantment_transfer.config.base_wear": "Base wear: %s",
-  "gui.selective_enchantment_transfer.config.base_wear.desc": "Every copied enchantment costs the source item this % of its max durability (tools and armor). Strong enchantments use the larger value."
+  "gui.selective_enchantment_transfer.config.base_wear.desc": "Every copied enchantment costs the source item this % of its max durability (tools and armor). Strong enchantments use the larger value.",
+  "gui.selective_enchantment_transfer.tooltip.untoggle": "Click to remove it from the selection.",
+  "gui.selective_enchantment_transfer.tooltip.split_title": "Split into several books",
+  "gui.selective_enchantment_transfer.tooltip.split_info": "Levels per book: %s (uses %s book(s)). Click to change.",
+  "gui.selective_enchantment_transfer.tooltip.books_title": "%s books",
+  "gui.selective_enchantment_transfer.tooltip.book_n": "Book %s",
+  "gui.selective_enchantment_transfer.books_needed": "Books: %s/%s",
+  "message.selective_enchantment_transfer.too_few_books": "Not enough enchantments: put at least 2 books in the right slot to split levels.",
+  "message.selective_enchantment_transfer.not_enough_books": "You don't have enough books for that split."
 }

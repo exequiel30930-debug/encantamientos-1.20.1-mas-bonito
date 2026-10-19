@@ -13,11 +13,16 @@ Ingles (`en_us`) y espanol de Espana (`es_es`). Con cualquier otro idioma del ju
 
 ## Como se usa
 1. En el yunque: un objeto con **2 o mas encantamientos** (herramienta, armadura o libro encantado) a la izquierda y un **libro normal** a la derecha.
+   Tambien vale un objeto con un solo encantamiento de **nivel 2 o mas** si pones **2 o mas libros** a la derecha (para repartir sus niveles).
 2. Aparece un libro de vista previa como resultado (cuesta 1 nivel sacarlo; se devuelve).
-3. Al sacarlo se abre la pantalla de transferencia: marca los encantamientos, elige **Mover** o **Copiar** y pulsa **Transferir selección**.
-   - **Mover**: salen del objeto y pasan al libro nuevo. Si el origen es un libro encantado, debe quedarle al menos uno (asi se "separan" libros).
-   - **Copiar**: el objeto los conserva. Cuesta 3 veces mas y no admite encantamientos de tesoro (Reparacion, Paso helado, Velocidad de alma, Sigilo veloz).
-4. Si cancelas, recuperas todo y no pagas nada.
+3. Al sacarlo se abre la pantalla de transferencia. Arriba eliges el modo (**Mover** o **Copiar**) y marcas encantamientos: cada uno queda marcado con el modo que estaba activo en ese momento
+   (verde = mover, dorado = copiar). Cambiar de modo no cambia los ya marcados, asi que puedes mover unos y copiar otros en la misma transferencia. Pulsa **Transferir**.
+   - **Mover**: salen del objeto y pasan al libro nuevo.
+   - **Copiar**: el objeto los conserva. Cuesta 3 veces mas y desgasta la durabilidad del objeto.
+4. **Repartir niveles en varios libros**: en un encantamiento marcado de nivel 2 o mas aparece un selector (por ejemplo `2+1`) que reparte sus niveles entre libros:
+   Filo III puede ir en 1 libro (3), en 2 libros (2+1) o en 3 libros (1+1+1). Se usa un libro normal por cada libro de salida; los libros que sobren se devuelven.
+   Si el origen es un libro encantado y mueves todo, el libro de origen se consume; hace falta repartirlo en 2 o mas libros (si no, saldria el mismo libro).
+5. Si cancelas, recuperas todo y no pagas nada.
 
 ## Precios (niveles de XP)
 Por encantamiento (mover): `peso x nivel`, con peso comun 1.0 · poco comun 1.5 · raro 2.0 · muy raro 3.0, **+4** si es de tesoro. Minimo 1, tope total 39.
@@ -27,7 +32,7 @@ Configurable en `serverconfig/selective_enchantment_transfer-server.toml`: `xpCo
 
 ## Menu de ajustes (dentro del juego)
 En la pantalla de transferencia hay un boton **Ajustes** (arriba a la derecha). Abre un menu con el mismo estilo arcano que la pantalla de transferencia:
-clic = siguiente valor, Mayus + clic = valor anterior, y al pasar el raton sale una explicacion de cada opcion.
+clic = siguiente valor, Mayus + clic = esa opcion vuelve a su valor por defecto, y al pasar el raton sale una explicacion de cada opcion.
 Opciones: coste de XP, multiplicador de precio, coste maximo, minimo de encantamientos, sonido, modo copiar,
 precio de copiar, copiar encantamientos de tesoro, desgaste al copiar, desgaste base y cantidad de desgaste.
 Los ajustes son del mundo/servidor (`serverconfig/selective_enchantment_transfer-server.toml`). En servidores solo los operadores pueden guardar;

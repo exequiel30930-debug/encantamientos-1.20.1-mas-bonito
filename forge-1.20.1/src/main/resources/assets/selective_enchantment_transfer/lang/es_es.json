@@ -16,10 +16,9 @@
   "gui.selective_enchantment_transfer.mode_copy": "Copiar",
   "gui.selective_enchantment_transfer.mode_move_tip": "Los encantamientos salen del objeto y pasan al libro nuevo.",
   "gui.selective_enchantment_transfer.mode_copy_tip": "El objeto conserva sus encantamientos. Cuesta %s× el precio normal.",
-  "gui.selective_enchantment_transfer.mode_all_tip": "Aplica este modo a todos los encantamientos. También puedes cambiar cada uno con su propio botón.",
-  "gui.selective_enchantment_transfer.tooltip.mode_toggle": "Clic para cambiar solo este encantamiento.",
+  "gui.selective_enchantment_transfer.mode_all_tip": "Se aplica a los encantamientos que elijas a partir de ahora. Los que ya elegiste mantienen su modo.",
   "gui.selective_enchantment_transfer.cant_copy": "Los encantamientos de tesoro no se pueden copiar",
-  "gui.selective_enchantment_transfer.keep_one": "Deja al menos uno",
+  "gui.selective_enchantment_transfer.keep_one": "Deja uno o separa",
   "gui.selective_enchantment_transfer.settings": "Ajustes",
   "message.selective_enchantment_transfer.not_enough_xp": "No tienes suficientes niveles de experiencia.",
   "message.selective_enchantment_transfer.config_saved": "Ajustes guardados.",
@@ -73,5 +72,13 @@
   "gui.selective_enchantment_transfer.deny.cant_copy": "No se puede copiar ese encantamiento",
   "gui.selective_enchantment_transfer.deny.cant_move": "No se puede mover ese encantamiento",
   "gui.selective_enchantment_transfer.config.base_wear": "Desgaste base: %s",
-  "gui.selective_enchantment_transfer.config.base_wear.desc": "Cada encantamiento copiado le quita al objeto de origen este % de su durabilidad máxima (herramientas y armaduras). Los fuertes usan el valor mayor."
+  "gui.selective_enchantment_transfer.config.base_wear.desc": "Cada encantamiento copiado le quita al objeto de origen este % de su durabilidad máxima (herramientas y armaduras). Los fuertes usan el valor mayor.",
+  "gui.selective_enchantment_transfer.tooltip.untoggle": "Clic para quitarlo de la selección.",
+  "gui.selective_enchantment_transfer.tooltip.split_title": "Separar en varios libros",
+  "gui.selective_enchantment_transfer.tooltip.split_info": "Niveles por libro: %s (usa %s libro(s)). Clic para cambiar.",
+  "gui.selective_enchantment_transfer.tooltip.books_title": "%s libros",
+  "gui.selective_enchantment_transfer.tooltip.book_n": "Libro %s",
+  "gui.selective_enchantment_transfer.books_needed": "Libros: %s/%s",
+  "message.selective_enchantment_transfer.too_few_books": "Faltan encantamientos: pon al menos 2 libros a la derecha para separar niveles.",
+  "message.selective_enchantment_transfer.not_enough_books": "No tienes libros suficientes para esa separación."
 }

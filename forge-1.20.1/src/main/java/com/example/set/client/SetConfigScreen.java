@@ -260,9 +260,6 @@ public class SetConfigScreen extends Screen {
         panel(g, panX, panY, panW, panH);
         drawCentered(g, title.getString(), width / 2, titleY, GOLD, true);
         drawCentered(g, tr("config.note"), width / 2, titleY + 13, TEXT_DIM, false);
-        rect(g, width / 2 - 60, titleY + 25, width / 2 - 6, titleY + 26, VIOLET_DK);
-        rect(g, width / 2 - 6, titleY + 25, width / 2 + 6, titleY + 26, GOLD_DK);
-        rect(g, width / 2 + 6, titleY + 25, width / 2 + 60, titleY + 26, VIOLET_DK);
 
         Opt hovered = null;
         for (Opt o : opts) {

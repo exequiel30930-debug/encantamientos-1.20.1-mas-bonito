@@ -33,17 +33,19 @@ public class AnvilHint {
         ItemStack right = menu.getSlot(1).getItem();
         int n = left.isEmpty() ? 0 : EnchantmentHelper.getEnchantments(left).size();
         int min = SetConfig.minEnchantments();
+        boolean splittable = !left.isEmpty() && AnvilHandler.canSplit(left);
         boolean tooFew = n >= 1 && n < min && left.getCount() == 1 && !left.is(Items.BOOK)
                 && right.is(Items.BOOK) && !menu.getSlot(2).hasItem();
         if (!tooFew) {
             if (!shown.isEmpty()) shown.remove(player.getUUID());
             return;
         }
-        int key = n * 100 + min;
+        int key = n * 100 + min + (splittable ? 100000 : 0);
         Integer prev = shown.get(player.getUUID());
         if (prev == null || prev.intValue() != key) {
             shown.put(player.getUUID(), key);
-            player.displayClientMessage(Component.translatable("message.selective_enchantment_transfer.too_few", n, min), true);
+            if (splittable) player.displayClientMessage(Component.translatable("message.selective_enchantment_transfer.too_few_books"), true);
+            else player.displayClientMessage(Component.translatable("message.selective_enchantment_transfer.too_few", n, min), true);
         }
     }
 

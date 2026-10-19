@@ -24,10 +24,13 @@ import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Segunda pantalla: muestra el objeto (herramienta o libro encantado) y el libro (bloqueados) y deja
@@ -36,6 +39,29 @@ import java.util.Map;
 public class TransferMenu extends AbstractContainerMenu {
     // posiciones de las ranuras (la pantalla dibuja sus marcos alrededor de estas coordenadas)
     public static final int TOOL_X = 15, BOOK_X = 63, SLOT_Y = 22;
+
+    /** Maximo de libros de salida en una sola transferencia (y de libros normales que se consumen del yunque). */
+    public static final int MAX_BOOKS = 10;
+
+    /** Un encantamiento elegido: se mueve o se copia, y como se reparten sus niveles entre los libros de salida (suma = su nivel). */
+    public record Pick(String id, boolean copy, int[] parts) {}
+
+    /** Todas las formas de repartir "level" niveles en 1..maxParts libros, de la menos a la mas repartida: [3], [2,1], [1,1,1]. */
+    public static List<int[]> partitions(int level, int maxParts) {
+        List<int[]> out = new ArrayList<>();
+        int mp = Math.max(1, maxParts);
+        if (level < 1) { out.add(new int[]{Math.max(level, 1)}); return out; }
+        genPartitions(level, level, mp, new int[mp], 0, out);
+        return out;
+    }
+    private static void genPartitions(int remaining, int max, int maxParts, int[] cur, int len, List<int[]> out) {
+        if (remaining == 0) { out.add(Arrays.copyOf(cur, len)); return; }
+        if (len >= maxParts) return;
+        for (int p = Math.min(remaining, max); p >= 1 && out.size() < 200; p--) {
+            cur[len] = p;
+            genPartitions(remaining - p, p, maxParts, cur, len + 1, out);
+        }
+    }
 
     /** Recargo fijo (niveles) de los encantamientos "de tesoro" (Reparacion, Paso helado, Velocidad de alma...). */
     public static final int TREASURE_BONUS = 4;
@@ -161,6 +187,8 @@ public class TransferMenu extends AbstractContainerMenu {
     public SetConfig.Settings getSettings() { return settings; }
     public void setSettings(SetConfig.Settings settings) { this.settings = settings; }
     public ItemStack getSource() { return inputs.getItem(0); }
+    /** Libros normales disponibles para repartir niveles. */
+    public int getBookCount() { return inputs.getItem(1).getCount(); }
 
     public List<Map.Entry<Enchantment, Integer>> getEnchantments() {
         ItemStack source = inputs.getItem(0);
@@ -181,29 +209,47 @@ public class TransferMenu extends AbstractContainerMenu {
         }
     }
 
-    /** Cada encantamiento elegido se MUEVE (moveIds) o se COPIA (copyIds): se pueden mezclar en una misma transferencia. */
-    public void transferSelected(ServerPlayer player, List<String> moveIds, List<String> copyIds) {
-        if (finished || (moveIds.isEmpty() && copyIds.isEmpty())) return;
+    /**
+     * Cada encantamiento elegido se MUEVE o se COPIA (nunca las dos cosas a la vez) y sus niveles se reparten entre uno o varios
+     * libros (por ejemplo Filo III en dos libros: II + I). Hace falta un libro normal por cada libro de salida.
+     */
+    public void transferSelected(ServerPlayer player, List<Pick> picks) {
+        if (finished || picks == null || picks.isEmpty()) return;
         SetConfig.Settings s = SetConfig.Settings.fromConfig(); // siempre los valores reales del servidor
-        if (!copyIds.isEmpty() && !s.allowCopy) return;
         ItemStack source = inputs.getItem(0);
         ItemStack book = inputs.getItem(1);
         if (source.isEmpty() || !book.is(Items.BOOK)) return;
+        int maxBooks = Math.min(MAX_BOOKS, book.getCount());
 
         Map<Enchantment, Integer> all = new LinkedHashMap<>(EnchantmentHelper.getEnchantments(source));
         Map<Enchantment, Integer> moved = new LinkedHashMap<>();
         Map<Enchantment, Integer> copied = new LinkedHashMap<>();
-        for (Map.Entry<Enchantment, Integer> entry : all.entrySet()) {
-            String id = idOf(entry.getKey());
-            if (moveIds.contains(id)) {
-                if (denyReason(s, entry.getKey(), source, false) == 0) moved.put(entry.getKey(), entry.getValue());
-            } else if (copyIds.contains(id)) {
-                if (denyReason(s, entry.getKey(), source, true) == 0) copied.put(entry.getKey(), entry.getValue());
-            }
+        Map<Enchantment, int[]> partsOf = new LinkedHashMap<>();
+        Set<String> seen = new HashSet<>();
+        int booksNeeded = 1;
+        for (Pick pick : picks) {
+            if (pick == null || pick.id() == null || pick.parts() == null || !seen.add(pick.id())) return; // peticion invalida o repetida: no se hace nada
+            Map.Entry<Enchantment, Integer> found = null;
+            for (Map.Entry<Enchantment, Integer> entry : all.entrySet()) if (idOf(entry.getKey()).equals(pick.id())) found = entry;
+            if (found == null) return;
+            if (pick.copy() && !s.allowCopy) return;
+            if (denyReason(s, found.getKey(), source, pick.copy()) != 0) return;
+            int[] parts = pick.parts();
+            int sum = 0;
+            for (int part : parts) { if (part < 1) return; sum += part; }
+            if (parts.length < 1 || parts.length > MAX_BOOKS || sum != found.getValue().intValue()) return;
+            booksNeeded = Math.max(booksNeeded, parts.length);
+            partsOf.put(found.getKey(), parts.clone());
+            if (pick.copy()) copied.put(found.getKey(), found.getValue()); else moved.put(found.getKey(), found.getValue());
         }
         if (moved.isEmpty() && copied.isEmpty()) return;
-        // un libro origen no puede quedarse sin ningun encantamiento al MOVER (seria un libro vacio)
-        if (source.is(Items.ENCHANTED_BOOK) && !moved.isEmpty() && moved.size() >= all.size()) return;
+        if (booksNeeded > maxBooks) {
+            player.displayClientMessage(Component.translatable("message.selective_enchantment_transfer.not_enough_books"), true);
+            return;
+        }
+        // mover TODO de un libro encantado sin repartirlo solo daria el mismo libro: no se permite
+        boolean sourceIsBook = source.is(Items.ENCHANTED_BOOK);
+        if (sourceIsBook && !moved.isEmpty() && moved.size() >= all.size() && booksNeeded < 2) return;
         if (!copied.isEmpty() && !canPayWear(s, source, copied)) {
             player.displayClientMessage(Component.translatable("message.selective_enchantment_transfer.not_enough_durability"), true);
             return;
@@ -216,16 +262,18 @@ public class TransferMenu extends AbstractContainerMenu {
         }
         if (!player.getAbilities().instabuild && cost > 0) player.giveExperienceLevels(-cost);
 
-        ItemStack newBook = new ItemStack(Items.ENCHANTED_BOOK);
-        for (Map.Entry<Enchantment, Integer> entry : moved.entrySet())
-            EnchantedBookItem.addEnchantment(newBook, new EnchantmentInstance(entry.getKey(), entry.getValue()));
-        for (Map.Entry<Enchantment, Integer> entry : copied.entrySet())
-            EnchantedBookItem.addEnchantment(newBook, new EnchantmentInstance(entry.getKey(), entry.getValue()));
+        List<ItemStack> outputs = new ArrayList<>();
+        for (int i = 0; i < booksNeeded; i++) outputs.add(new ItemStack(Items.ENCHANTED_BOOK));
+        for (Map.Entry<Enchantment, int[]> entry : partsOf.entrySet())
+            for (int i = 0; i < entry.getValue().length; i++)
+                EnchantedBookItem.addEnchantment(outputs.get(i), new EnchantmentInstance(entry.getKey(), entry.getValue()[i]));
 
+        boolean discardSource = false;
         if (!moved.isEmpty()) {
             Map<Enchantment, Integer> remaining = new LinkedHashMap<>(all);
             remaining.keySet().removeIf(moved::containsKey);
-            applyRemaining(source, remaining);
+            if (sourceIsBook && remaining.isEmpty()) discardSource = true; // el libro de origen se queda vacio: se consume
+            else applyRemaining(source, remaining);
         }
 
         if (!copied.isEmpty()) {
@@ -233,15 +281,18 @@ public class TransferMenu extends AbstractContainerMenu {
             if (wear > 0) source.setDamageValue(source.getDamageValue() + wear);
         }
 
+        ItemStack unusedBooks = book.copy();
+        unusedBooks.shrink(booksNeeded);
         inputs.setItem(0, ItemStack.EMPTY);
         inputs.setItem(1, ItemStack.EMPTY);
         finished = true;
-        give(player, source);
-        give(player, newBook);
+        if (!discardSource) give(player, source);
+        for (ItemStack out : outputs) give(player, out);
+        give(player, unusedBooks);
         if (s.sounds) player.level().playSound(null, player.blockPosition(), SoundEvents.ANVIL_USE, SoundSource.BLOCKS, 1.0F, 1.0F);
         ModAdvancements.award(player, "first_transfer");
         if (!copied.isEmpty()) ModAdvancements.award(player, "copy_cat");
-        if (!moved.isEmpty() && source.is(Items.ENCHANTED_BOOK)) ModAdvancements.award(player, "split_book");
+        if (sourceIsBook && (!moved.isEmpty() || booksNeeded > 1)) ModAdvancements.award(player, "split_book");
         if (cost >= 30 && !player.getAbilities().instabuild) ModAdvancements.award(player, "heavy_lifting");
         player.closeContainer();
     }
