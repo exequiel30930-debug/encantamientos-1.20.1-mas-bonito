@@ -110,7 +110,6 @@ public class SetConfigScreen extends Screen {
     private static final int BG_TOP = 0xFF241A40, BG_BOT = 0xFF120D22, WELL = 0xFF120D22, SLOT_BG = 0xFF171127;
     private static final int GOLD = 0xFFFFD36B, GOLD_DK = 0xFFB8862B, TEXT_DIM = 0xFFA89BD6, TEXT_SOFT = 0xFFC9BDF0;
     private static final int GREEN = 0xFF5CFFB0, RED = 0xFFFF6B6B;
-    private static final int VIOLET = 0xFF7A56D0, VIOLET_DK = 0xFF3A2A66, VIOLET_HI = 0xFF9B7BEA, TEXT_DIM = 0xFFA89BD6, TEXT_SOFT = 0xFFC9BDF0;
     private int panX, panY, panW, panH, leftX, rightX, topY, saveY;
 
     private void rect(GuiGraphics g, int x1, int y1, int x2, int y2, int c) { g.fill(x1, y1, x2, y2, c); }
