@@ -19,6 +19,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentInstance;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -36,6 +37,7 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
     private static final int TB_X = 8, TB_Y = 146, TB_W = 124, TB_H = 20;     // Transferir
     private static final int CB_X = 136, CB_Y = 146, CB_W = 80, CB_H = 20;    // Cancelar
     private static final int SETB_X = 168, SETB_Y = 4, SETB_W = 48, SETB_H = 12; // Ajustes
+    private static final int CHIP_W = 32;
     private static final int MODE_X = 148, MODE_Y = 52, MODE_W = 68, MODE_H = 12; // Mover | Copiar
 
     // paleta
@@ -46,13 +48,15 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
     private static final int[][] CHECK = {{1, 3}, {2, 4}, {3, 5}, {4, 4}, {5, 3}, {6, 2}, {7, 1}};
 
     private final Set<String> selected = new LinkedHashSet<>();
-    private boolean copyMode = false;
+    private final Map<String, Boolean> copyOf = new HashMap<>(); // modo de cada encantamiento: false = mover, true = copiar
     private int scroll = 0;
     private boolean draggingScrollbar = false;
 
     // estado que se recalcula en cada fotograma
     private List<Map.Entry<Enchantment, Integer>> enchants = new ArrayList<>();
-    private Map<Enchantment, Integer> chosen = new LinkedHashMap<>();
+    private Map<Enchantment, Integer> chosen = new LinkedHashMap<>();   // todos los elegidos
+    private Map<Enchantment, Integer> moved = new LinkedHashMap<>();    // los que se mueven
+    private Map<Enchantment, Integer> copied = new LinkedHashMap<>();   // los que se copian
     private boolean keepOneRule = false;   // origen = libro y se marcaron todos (en modo mover)
     private boolean valid = false;
     private int cost = 0;
@@ -72,7 +76,6 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
     }
     private static String tr(String key, Object... args) { return trc(key, args).getString(); }
     private static String fmt(double v) { return v == Math.rint(v) ? String.valueOf((int) v) : String.format("%.1f", v); }
-    private MutableComponent modeLabel() { return trc(copyMode ? "mode_copy" : "mode_move"); }
 
     // ---------- primitivas de dibujo (lo unico que cambia entre versiones de Minecraft) ----------
     private void rect(GuiGraphics g, int x1, int y1, int x2, int y2, int c) { g.fill(x1, y1, x2, y2, c); }
@@ -94,11 +97,41 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
         return minecraft != null && minecraft.player != null ? minecraft.player.experienceLevel : 0;
     }
     private boolean canPay() { return creative() || playerLevels() >= cost; }
-    private boolean selectable(Enchantment e) { return TransferMenu.denyReason(menu.getSettings(), e, menu.getSource(), copyMode) == 0; }
+    private boolean rowCopy(Enchantment e) { return menu.getSettings().allowCopy && Boolean.TRUE.equals(copyOf.get(TransferMenu.idOf(e))); }
+    private boolean selectable(Enchantment e) { return TransferMenu.denyReason(menu.getSettings(), e, menu.getSource(), rowCopy(e)) == 0; }
+
+    /** true si todos los encantamientos que admiten ese modo ya lo tienen (para resaltar el selector "todos"). */
+    private boolean modeAll(boolean target) {
+        boolean any = false;
+        for (Map.Entry<Enchantment, Integer> e : enchants) {
+            if (TransferMenu.denyReason(menu.getSettings(), e.getKey(), menu.getSource(), target) != 0) continue;
+            any = true;
+            if (rowCopy(e.getKey()) != target) return false;
+        }
+        return any;
+    }
+    private void setAll(boolean target) {
+        for (Map.Entry<Enchantment, Integer> e : enchants)
+            if (TransferMenu.denyReason(menu.getSettings(), e.getKey(), menu.getSource(), target) == 0)
+                copyOf.put(TransferMenu.idOf(e.getKey()), target);
+    }
+
+    private int chipX(Map.Entry<Enchantment, Integer> e) {
+        int rowW = LIST_W - 2 - (needsScroll() ? SB_W + 2 : 0);
+        int pw = font.width(tr("level_short", TransferMenu.costOf(menu.getSettings(), e.getKey(), e.getValue(), rowCopy(e.getKey()))));
+        return leftPos + LIST_X + 1 + rowW - 6 - pw - 4 - CHIP_W;
+    }
+    private boolean overChip(int row, double mx, double my) {
+        if (row < 0 || !menu.getSettings().allowCopy) return false;
+        Map.Entry<Enchantment, Integer> e = enchants.get(row);
+        if (TransferMenu.isBlocked(menu.getSettings(), e.getKey())) return false;
+        int ry = topPos + LIST_Y + 1 + (row - scroll) * ROW_H;
+        return inBox(mx, my, chipX(e), ry + 3, CHIP_W, 12);
+    }
     private boolean canTransfer() { return valid && canPay() && wearOk; }
 
     private void updateState() {
-        if (!menu.getSettings().allowCopy) copyMode = false;
+        if (!menu.getSettings().allowCopy) copyOf.clear();
         enchants = menu.getEnchantments();
         Set<String> allowed = new HashSet<>();
         for (Map.Entry<Enchantment, Integer> e : enchants) if (selectable(e.getKey())) allowed.add(TransferMenu.idOf(e.getKey()));
@@ -106,14 +139,19 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
         scroll = Math.max(0, Math.min(Math.max(0, enchants.size() - ROWS), scroll));
 
         chosen = new LinkedHashMap<>();
-        for (Map.Entry<Enchantment, Integer> e : enchants)
-            if (selected.contains(TransferMenu.idOf(e.getKey()))) chosen.put(e.getKey(), e.getValue());
-        cost = TransferMenu.totalCost(menu.getSettings(), chosen, copyMode);
-        wear = copyMode ? TransferMenu.wearPoints(menu.getSettings(), menu.getSource(), chosen) : 0;
-        wearOk = !copyMode || TransferMenu.canPayWear(menu.getSettings(), menu.getSource(), chosen);
+        moved = new LinkedHashMap<>();
+        copied = new LinkedHashMap<>();
+        for (Map.Entry<Enchantment, Integer> e : enchants) {
+            if (!selected.contains(TransferMenu.idOf(e.getKey()))) continue;
+            chosen.put(e.getKey(), e.getValue());
+            if (rowCopy(e.getKey())) copied.put(e.getKey(), e.getValue()); else moved.put(e.getKey(), e.getValue());
+        }
+        cost = TransferMenu.totalCost(menu.getSettings(), moved, copied);
+        wear = TransferMenu.wearPoints(menu.getSettings(), menu.getSource(), copied);
+        wearOk = copied.isEmpty() || TransferMenu.canPayWear(menu.getSettings(), menu.getSource(), copied);
 
         boolean sourceIsBook = menu.getSource().is(Items.ENCHANTED_BOOK);
-        keepOneRule = !copyMode && sourceIsBook && !chosen.isEmpty() && chosen.size() >= enchants.size();
+        keepOneRule = sourceIsBook && !moved.isEmpty() && moved.size() >= enchants.size();
         valid = !chosen.isEmpty() && !keepOneRule;
 
         if (chosen.isEmpty()) {
@@ -140,30 +178,38 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
             List<Component> tip = new ArrayList<>();
             tip.add(trc(overCopy ? "mode_copy" : "mode_move").withStyle(ChatFormatting.WHITE));
             tip.add(trc(overCopy ? "mode_copy_tip" : "mode_move_tip", fmt(menu.getSettings().copyCostMultiplier)).withStyle(ChatFormatting.GRAY));
+            tip.add(trc("mode_all_tip").withStyle(ChatFormatting.DARK_GRAY));
             tipc(g, tip, mx, my);
         } else if (inBox(mx, my, x + 140, y + 20, 76, 20)) {
             List<Component> tip = new ArrayList<>();
             tip.add(trc("tooltip.cost", cost));
             if (!creative()) tip.add(trc("have", playerLevels()).withStyle(ChatFormatting.GRAY));
-            if (copyMode && wear > 0) {
+            if (wear > 0) {
                 ItemStack src = menu.getSource();
                 tip.add(trc("tooltip.wear_total", wear, Math.max(0, src.getMaxDamage() - src.getDamageValue() - wear)).withStyle(wearOk ? ChatFormatting.GOLD : ChatFormatting.RED));
             }
+            tipc(g, tip, mx, my);
+        } else if (overChip(row, mx, my)) {
+            boolean rc = rowCopy(enchants.get(row).getKey());
+            List<Component> tip = new ArrayList<>();
+            tip.add(trc(rc ? "mode_copy" : "mode_move").withStyle(ChatFormatting.WHITE));
+            tip.add(trc(rc ? "mode_copy_tip" : "mode_move_tip", fmt(menu.getSettings().copyCostMultiplier)).withStyle(ChatFormatting.GRAY));
+            tip.add(trc("tooltip.mode_toggle").withStyle(ChatFormatting.DARK_GRAY));
             tipc(g, tip, mx, my);
         } else if (row >= 0) {
             Map.Entry<Enchantment, Integer> e = enchants.get(row);
             List<Component> tip = new ArrayList<>();
             tip.add(e.getKey().getFullname(e.getValue()));
-            tip.add(trc("tooltip.cost", TransferMenu.costOf(menu.getSettings(), e.getKey(), e.getValue(), copyMode)).withStyle(ChatFormatting.GOLD));
-            int deny = TransferMenu.denyReason(menu.getSettings(), e.getKey(), menu.getSource(), copyMode);
+            tip.add(trc("tooltip.cost", TransferMenu.costOf(menu.getSettings(), e.getKey(), e.getValue(), rowCopy(e.getKey()))).withStyle(ChatFormatting.GOLD));
+            int deny = TransferMenu.denyReason(menu.getSettings(), e.getKey(), menu.getSource(), rowCopy(e.getKey()));
             if (deny == 0) tip.add(trc("tooltip.toggle").withStyle(ChatFormatting.GRAY));
             else {
-                tip.add(trc(copyMode ? "deny.cant_copy" : "deny.cant_move").withStyle(ChatFormatting.RED));
+                tip.add(trc(rowCopy(e.getKey()) ? "deny.cant_copy" : "deny.cant_move").withStyle(ChatFormatting.RED));
                 if (deny == 2) tip.add(trc("cant_copy").withStyle(ChatFormatting.GRAY));
                 else if (deny == 3) tip.add(trc("deny.durable").withStyle(ChatFormatting.GRAY));
             }
             int wearPct = TransferMenu.effectiveWear(menu.getSettings(), e.getKey(), menu.getSource());
-            if (copyMode && wearPct > 0) tip.add(trc("tooltip.wear", wearPct).withStyle(ChatFormatting.GOLD));
+            if (rowCopy(e.getKey()) && wearPct > 0) tip.add(trc("tooltip.wear", wearPct).withStyle(ChatFormatting.GOLD));
             tipc(g, tip, mx, my);
         } else if (!resultStack.isEmpty() && inBox(mx, my, x + RESULT_X - 1, y + TransferMenu.SLOT_Y - 1, 18, 18)) {
             tipItem(g, resultStack, mx, my);
@@ -212,7 +258,7 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
         int costBorder = chosen.isEmpty() ? VIOLET_DK : (valid && canPay() && wearOk) ? GOLD_DK : (valid ? RED : VIOLET_DK);
         well(g, cx, cy, 76, 20, costBorder);
         drawFit(g, line1, cx + 5, cy + 3, 66, color);
-        if (copyMode && wear > 0) small(g, tr("wear_points", wear), cx + 5, cy + 13, wearOk ? 0xFFFF9955 : RED, false);
+        if (wear > 0) small(g, tr("wear_points", wear), cx + 5, cy + 13, wearOk ? 0xFFFF9955 : RED, false);
         else if (!creative()) small(g, tr("have", playerLevels()), cx + 5, cy + 13, TEXT_DIM, false);
 
         // cabecera de la lista y selector Mover | Copiar
@@ -242,15 +288,23 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
             if (on) for (int[] p : CHECK) rect(g, bx + 2 + p[0] - 1, by + 2 + p[1], bx + 3 + p[0] - 1, by + 4 + p[1], GREEN);
 
             // precio en una pastilla a la derecha y nombre ajustado
-            int priceVal = TransferMenu.costOf(menu.getSettings(), e.getKey(), e.getValue(), copyMode);
+            int priceVal = TransferMenu.costOf(menu.getSettings(), e.getKey(), e.getValue(), rowCopy(e.getKey()));
             String price = tr("level_short", priceVal);
             int pw = font.width(price);
-            boolean wears = copyMode && TransferMenu.effectiveWear(menu.getSettings(), e.getKey(), menu.getSource()) > 0;
+            boolean wears = rowCopy(e.getKey()) && TransferMenu.effectiveWear(menu.getSettings(), e.getKey(), menu.getSource()) > 0;
             int px = rx + rowW - 6 - pw;
             rect(g, px - 3, ry + 2, rx + rowW - 3, ry + ROW_H - 3, enabled ? 0xFF120D22 : 0xFF14101E);
             txt(g, price, px, ry + 5, enabled ? (wears ? 0xFFFF9955 : GOLD) : 0xFF6A6080, false);
+            if (menu.getSettings().allowCopy && !TransferMenu.isBlocked(menu.getSettings(), e.getKey())) {
+                boolean rc = rowCopy(e.getKey());
+                int cxp = px - 4 - CHIP_W;
+                boolean chipHover = inBox(mx, my, cxp, ry + 3, CHIP_W, 12);
+                int cb = rc ? (chipHover ? 0xFFFFE394 : GOLD_DK) : (chipHover ? VIOLET_HI : VIOLET_DK);
+                roundRect(g, cxp, ry + 3, CHIP_W, 12, cb, rc ? 0xFF3A2C10 : 0xFF1B1430);
+                small(g, tr(rc ? "mode_copy" : "mode_move"), cxp + CHIP_W / 2, ry + 6, rc ? GOLD : TEXT_SOFT, true);
+            }
             String name = e.getKey().getFullname(e.getValue()).getString();
-            drawFit(g, name, rx + 24, ry + 5, rowW - 24 - pw - 14, !enabled ? 0xFF7A7090 : on ? 0xFFB8FFDD : 0xFFFFFFFF);
+            drawFit(g, name, rx + 24, ry + 5, rowW - 24 - pw - 14 - (menu.getSettings().allowCopy && !TransferMenu.isBlocked(menu.getSettings(), e.getKey()) ? CHIP_W + 4 : 0), !enabled ? 0xFF7A7090 : on ? 0xFFB8FFDD : 0xFFFFFFFF);
         }
 
         // barra de scroll
@@ -336,7 +390,7 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
         int hw = MODE_W / 2;
         roundRect(g, x, y, MODE_W, MODE_H, VIOLET, VIOLET);
         for (int i = 0; i < 2; i++) {
-            boolean on = (i == 1) == copyMode;
+            boolean on = modeAll(i == 1);
             boolean hover = inBox(mx, my, x + i * hw, y, hw, MODE_H);
             int sx = x + 1 + i * (hw - 1), sw = hw - 1;
             if (on) vgrad(g, sx, y + 1, sx + sw, y + MODE_H - 1, GOLD, 0xFFC9922E);
@@ -423,18 +477,30 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
             if (inBox(mx, my, x + TB_X, y + TB_Y, TB_W, TB_H)) {
                 if (canTransfer()) {
                     click();
-                    ModNetwork.sendSelection(menu.containerId, new ArrayList<>(selected), copyMode);
+                    List<String> moveIds = new ArrayList<>(), copyIds = new ArrayList<>();
+                    for (Map.Entry<Enchantment, Integer> e : enchants) {
+                        String id = TransferMenu.idOf(e.getKey());
+                        if (!selected.contains(id)) continue;
+                        if (rowCopy(e.getKey())) copyIds.add(id); else moveIds.add(id);
+                    }
+                    ModNetwork.sendSelection(menu.containerId, moveIds, copyIds);
                 }
                 return true;
             }
             if (menu.getSettings().allowCopy && inBox(mx, my, x + MODE_X, y + MODE_Y, MODE_W, MODE_H)) {
                 boolean wantCopy = mx >= x + MODE_X + MODE_W / 2;
-                if (wantCopy != copyMode) { copyMode = wantCopy; click(); }
+                setAll(wantCopy);
+                click();
                 return true;
             }
             int row = rowAt(mx, my);
             if (row >= 0) {
                 Enchantment ench = enchants.get(row).getKey();
+                if (overChip(row, mx, my)) {
+                    copyOf.put(TransferMenu.idOf(ench), !rowCopy(ench));
+                    click();
+                    return true;
+                }
                 if (!selectable(ench)) return true;
                 String id = TransferMenu.idOf(ench);
                 if (!selected.add(id)) selected.remove(id);

@@ -190,6 +190,25 @@ public class SetConfigScreen extends Screen {
         pop(g);
     }
 
+    /** Mayus + clic: devuelve solo esta opcion a su valor por defecto. */
+    private void resetOpt(Opt o) {
+        SetConfig.Settings d = SetConfig.Settings.defaults();
+        switch (o.id) {
+            case "xp_cost": s.xpCostEnabled = d.xpCostEnabled; break;
+            case "cost_mult": s.costMultiplier = d.costMultiplier; break;
+            case "max_cost": s.maxTotalCost = d.maxTotalCost; break;
+            case "min_ench": s.minEnchantments = d.minEnchantments; break;
+            case "sounds": s.sounds = d.sounds; break;
+            case "allow_copy": s.allowCopy = d.allowCopy; break;
+            case "copy_mult": s.copyCostMultiplier = d.copyCostMultiplier; break;
+            case "copy_treasure": s.allowCopyTreasure = d.allowCopyTreasure; break;
+            case "copy_wear": s.copyWearEnabled = d.copyWearEnabled; break;
+            case "base_wear": s.copyBaseWear = d.copyBaseWear; break;
+            case "wear_mult": s.copyWearMultiplier = d.copyWearMultiplier; break;
+            default: break;
+        }
+    }
+
     private void click() {
         minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
     }
@@ -211,11 +230,10 @@ public class SetConfigScreen extends Screen {
             o.y = topY + (i % 6) * ROW_H;
         }
         saveY = topY + 6 * ROW_H + 8;
-        fileNoteY = saveY + BTN_H + 7;
         panW = BTN_W * 2 + 10 + 28;
         panX = width / 2 - panW / 2;
         panY = titleY - 9;
-        panH = fileNoteY + 16 - panY;
+        panH = saveY + BTN_H + 12 - panY;
     }
 
     @Override public void onClose() { minecraft.setScreen(parent); }
@@ -255,7 +273,6 @@ public class SetConfigScreen extends Screen {
         button(g, rightX, topY + 5 * ROW_H, BTN_W, BTN_H, tr("config.reset"), true, inBox(mx, my, rightX, topY + 5 * ROW_H, BTN_W, BTN_H), false);
         button(g, leftX, saveY, BTN_W, BTN_H, tr("config.save"), true, inBox(mx, my, leftX, saveY, BTN_W, BTN_H), true);
         button(g, rightX, saveY, BTN_W, BTN_H, tr("config.cancel"), true, inBox(mx, my, rightX, saveY, BTN_W, BTN_H), false);
-        drawCentered(g, tr("config.file_note"), width / 2, fileNoteY, TEXT_DIM, false);
 
         if (hovered != null) tipc(g, wrap(tr("config." + hovered.id + ".desc"), 200), mx, my);
     }
@@ -266,7 +283,7 @@ public class SetConfigScreen extends Screen {
             for (Opt o : opts) {
                 if (inBox(mx, my, o.x, o.y, BTN_W, BTN_H)) {
                     if (isOn(o)) {
-                        if (hasShiftDown()) o.prev.run(); else o.next.run();
+                        if (hasShiftDown()) resetOpt(o); else o.next.run();
                         click();
                     }
                     return true;

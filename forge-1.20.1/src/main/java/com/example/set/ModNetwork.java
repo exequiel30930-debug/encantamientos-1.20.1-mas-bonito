@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class ModNetwork {
-    private static final String PROTOCOL = "6";
+    private static final String PROTOCOL = "7";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(SelectiveEnchantmentTransfer.MODID, "main"),
             () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
@@ -34,7 +34,7 @@ public final class ModNetwork {
                         ServerPlayer player = ctx.get().getSender();
                         if (player != null && player.containerMenu instanceof TransferMenu) {
                             TransferMenu menu = (TransferMenu) player.containerMenu;
-                            if (menu.containerId == packet.containerId) menu.transferSelected(player, packet.enchantmentIds, packet.copy);
+                            if (menu.containerId == packet.containerId) menu.transferSelected(player, packet.moveIds, packet.copyIds);
                         }
                     });
                     ctx.get().setPacketHandled(true);
@@ -92,8 +92,8 @@ public final class ModNetwork {
                 });
     }
 
-    public static void sendSelection(int containerId, List<String> ids, boolean copy) {
-        CHANNEL.sendToServer(new TransferSelectionPacket(containerId, ids, copy));
+    public static void sendSelection(int containerId, List<String> moveIds, List<String> copyIds) {
+        CHANNEL.sendToServer(new TransferSelectionPacket(containerId, moveIds, copyIds));
     }
 
     public static void requestSettings() {
@@ -106,26 +106,34 @@ public final class ModNetwork {
 
     public static class TransferSelectionPacket {
         final int containerId;
-        final List<String> enchantmentIds;
-        final boolean copy;
-        TransferSelectionPacket(int containerId, List<String> enchantmentIds, boolean copy) {
+        final List<String> moveIds;
+        final List<String> copyIds;
+        TransferSelectionPacket(int containerId, List<String> moveIds, List<String> copyIds) {
             this.containerId = containerId;
-            this.enchantmentIds = new ArrayList<>(enchantmentIds);
-            this.copy = copy;
+            this.moveIds = new ArrayList<>(moveIds);
+            this.copyIds = new ArrayList<>(copyIds);
         }
-        static void encode(TransferSelectionPacket p, FriendlyByteBuf buf) {
-            buf.writeVarInt(p.containerId);
-            buf.writeVarInt(p.enchantmentIds.size());
-            for (String id : p.enchantmentIds) buf.writeUtf(id, 256);
-            buf.writeBoolean(p.copy);
+        private static void writeIds(FriendlyByteBuf buf, List<String> ids) {
+            buf.writeVarInt(ids.size());
+            for (String id : ids) buf.writeUtf(id, 256);
         }
-        static TransferSelectionPacket decode(FriendlyByteBuf buf) {
-            int containerId = buf.readVarInt();
+        private static List<String> readIds(FriendlyByteBuf buf) {
             int count = buf.readVarInt();
             if (count < 0 || count > 64) throw new IllegalArgumentException("Invalid enchantment count: " + count);
             List<String> ids = new ArrayList<>();
             for (int i = 0; i < count; i++) ids.add(buf.readUtf(256));
-            return new TransferSelectionPacket(containerId, ids, buf.readBoolean());
+            return ids;
+        }
+        static void encode(TransferSelectionPacket p, FriendlyByteBuf buf) {
+            buf.writeVarInt(p.containerId);
+            writeIds(buf, p.moveIds);
+            writeIds(buf, p.copyIds);
+        }
+        static TransferSelectionPacket decode(FriendlyByteBuf buf) {
+            int containerId = buf.readVarInt();
+            List<String> move = readIds(buf);
+            List<String> copy = readIds(buf);
+            return new TransferSelectionPacket(containerId, move, copy);
         }
     }
 
