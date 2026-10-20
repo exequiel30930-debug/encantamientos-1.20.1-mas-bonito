@@ -16,6 +16,7 @@ import net.minecraft.world.item.EnchantedBookItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.EnchantmentInstance;
 
 import java.util.ArrayList;
@@ -45,6 +46,8 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
 
     private final Map<String, Boolean> selected = new LinkedHashMap<>(); // id -> true = copiar, false = mover (el modo con el que se marco)
     private final Map<String, Integer> splitIdx = new HashMap<>();         // id -> reparto elegido entre libros
+    private boolean restored = false;                                     // ya se aplico la seleccion recordada
+    private boolean targetMode = false;                                    // la ranura derecha es un objeto destino, no un libro
     private boolean curCopy = false;                                       // modo con el que se marcan los SIGUIENTES encantamientos
     private int scroll = 0;
     private boolean draggingScrollbar = false;
@@ -70,6 +73,7 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
         super(menu, inventory, title);
         imageWidth = W;
         imageHeight = H;
+        curCopy = ClientMemory.copyMode; // recuerda el ultimo modo usado
     }
 
     // ---------- textos ----------
@@ -105,7 +109,37 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
         return m != null ? m.booleanValue() : curCopy;
     }
     /** Se puede marcar ahora (con el modo actual). */
-    private boolean selectable(Enchantment e) { return TransferMenu.denyReason(menu.getSettings(), e, menu.getSource(), curCopy) == 0; }
+    /** Objeto destino: 0 = ok; 4 = no lo admite; 5 = choca con uno del destino; 6 = ya lo tiene; 7 = choca con otro elegido. */
+    private int targetReason(Enchantment e) {
+        if (!menu.isTargetMode()) return 0;
+        int d = TransferMenu.targetDeny(e, menu.getTarget());
+        if (d != 0) return d;
+        for (Map.Entry<Enchantment, Integer> o : enchants) {
+            if (o.getKey() == e || !selected.containsKey(TransferMenu.idOf(o.getKey()))) continue;
+            if (!e.isCompatibleWith(o.getKey())) return 7;
+        }
+        return 0;
+    }
+    private boolean selectable(Enchantment e) {
+        return TransferMenu.denyReason(menu.getSettings(), e, menu.getSource(), curCopy) == 0 && targetReason(e) == 0;
+    }
+
+    private void selectAll() {
+        for (Map.Entry<Enchantment, Integer> e : enchants) {
+            String id = TransferMenu.idOf(e.getKey());
+            if (selected.containsKey(id) || !selectable(e.getKey())) continue;
+            selected.put(id, curCopy);
+            splitIdx.remove(id);
+        }
+    }
+    private void remember() {
+        ClientMemory.copyMode = curCopy;
+        ClientMemory.selection = new LinkedHashMap<>(selected);
+    }
+    private int noneW() { return font.width(tr("select_none")) + 8; }
+    private int allW() { return font.width(tr("select_all")) + 8; }
+    private int noneX() { return leftPos + MODE_X - 4 - noneW(); }
+    private int allX() { return noneX() - 2 - allW(); }
     private boolean canTransfer() { return valid && canPay() && wearOk; }
 
     private int[] partsFor(Map.Entry<Enchantment, Integer> e) {
@@ -124,8 +158,19 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
         SetConfig.Settings st = menu.getSettings();
         if (!st.allowCopy) { curCopy = false; selected.values().removeIf(c -> c.booleanValue()); }
         enchants = menu.getEnchantments();
+        targetMode = menu.isTargetMode();
         bookCount = menu.getBookCount();
-        maxParts = Math.max(1, Math.min(TransferMenu.MAX_BOOKS, bookCount));
+        maxParts = targetMode ? 1 : Math.max(1, Math.min(TransferMenu.MAX_BOOKS, bookCount)); // al objeto destino no se reparte
+        if (!restored && !enchants.isEmpty()) { // vuelve a marcar lo que elegiste la ultima vez (si este objeto lo tiene y se puede)
+            restored = true;
+            for (Map.Entry<String, Boolean> m : ClientMemory.selection.entrySet()) {
+                Map.Entry<Enchantment, Integer> found = null;
+                for (Map.Entry<Enchantment, Integer> e : enchants) if (TransferMenu.idOf(e.getKey()).equals(m.getKey())) found = e;
+                if (found == null || (m.getValue().booleanValue() && !st.allowCopy)) continue;
+                if (TransferMenu.denyReason(st, found.getKey(), menu.getSource(), m.getValue().booleanValue()) != 0 || targetReason(found.getKey()) != 0) continue;
+                selected.put(m.getKey(), m.getValue());
+            }
+        }
         // los ya elegidos conservan su modo aunque se cambie el de arriba; solo se quitan si ya no existen o el servidor los bloquea
         selected.entrySet().removeIf(en -> {
             Map.Entry<Enchantment, Integer> found = null;
@@ -147,7 +192,7 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
             if (mode.booleanValue()) copied.put(e.getKey(), e.getValue());
             else { moved.put(e.getKey(), e.getValue()); if (parts.length > 1) anySplitMoved = true; }
         }
-        outBooks = TransferMenu.buildBooks(partsMap);
+        outBooks = targetMode ? new ArrayList<Map<Enchantment, Integer>>() : TransferMenu.buildBooks(partsMap);
         booksNeeded = outBooks.size();
         boolean any = !moved.isEmpty() || !copied.isEmpty();
         cost = TransferMenu.totalCost(st, moved, copied);
@@ -155,11 +200,18 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
         wearOk = copied.isEmpty() || TransferMenu.canPayWear(st, menu.getSource(), copied);
 
         boolean sourceIsBook = menu.getSource().is(Items.ENCHANTED_BOOK);
-        keepOneRule = sourceIsBook && !moved.isEmpty() && moved.size() >= enchants.size() && !anySplitMoved;
+        keepOneRule = !targetMode && sourceIsBook && !moved.isEmpty() && moved.size() >= enchants.size() && !anySplitMoved;
         valid = any && !keepOneRule && booksNeeded <= bookCount;
 
         if (!any) {
             resultStack = ItemStack.EMPTY;
+        } else if (targetMode) {
+            ItemStack t = menu.getTarget().copy();
+            Map<Enchantment, Integer> merged = new LinkedHashMap<>(EnchantmentHelper.getEnchantments(t));
+            merged.putAll(moved);
+            merged.putAll(copied);
+            EnchantmentHelper.setEnchantments(merged, t);
+            resultStack = t;
         } else {
             ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
             for (Map.Entry<Enchantment, Integer> e : outBooks.get(0).entrySet())
@@ -256,11 +308,14 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
             tip.add(e.getKey().getFullname(e.getValue()));
             tip.add(trc("tooltip.cost", TransferMenu.costOf(st, e.getKey(), e.getValue(), rc)).withStyle(ChatFormatting.GOLD));
             int deny = on ? 0 : TransferMenu.denyReason(st, e.getKey(), menu.getSource(), rc);
+            int tReason = on ? 0 : targetReason(e.getKey());
             if (on) {
                 tip.add(trc(rc ? "mode_copy" : "mode_move").withStyle(rc ? ChatFormatting.GOLD : ChatFormatting.GREEN));
                 tip.add(trc("tooltip.untoggle").withStyle(ChatFormatting.GRAY));
-            } else if (deny == 0) {
+            } else if (deny == 0 && tReason == 0) {
                 tip.add(trc("tooltip.toggle").withStyle(ChatFormatting.GRAY));
+            } else if (deny == 0) {
+                tip.add(trc("deny.target_" + tReason).withStyle(ChatFormatting.RED));
             } else {
                 tip.add(trc(rc ? "deny.cant_copy" : "deny.cant_move").withStyle(ChatFormatting.RED));
                 if (deny == 2) tip.add(trc("cant_copy").withStyle(ChatFormatting.GRAY));
@@ -316,7 +371,7 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
         txt(g, "+", x + 42, sy + 4, VIOLET_HI, false);
         arrow(g, x + 88, sy + 8, valid ? lerp(GOLD_DK, GOLD, pulse) : VIOLET_DK);
         small(g, tr("tool"), x + TransferMenu.TOOL_X + 8, y + 41, TEXT_DIM, true);
-        small(g, tr("book"), x + TransferMenu.BOOK_X + 8, y + 41, TEXT_DIM, true);
+        small(g, tr(targetMode ? "target" : "book"), x + TransferMenu.BOOK_X + 8, y + 41, TEXT_DIM, true);
         small(g, tr("result"), x + RESULT_X + 8, y + 41, TEXT_DIM, true);
         if (!resultStack.isEmpty()) item(g, resultStack, x + RESULT_X, sy);
         else txt(g, "?", x + RESULT_X + 8 - font.width("?") / 2, sy + 4, VIOLET, false);
@@ -337,7 +392,9 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
         else if (!creative()) small(g, tr("have", playerLevels()), cx + 5, cy + 13, TEXT_DIM, false);
 
         // cabecera de la lista y selector Mover | Copiar (modo con el que se marcan los siguientes)
-        txt(g, tr("choose"), x + 10, y + 55, TEXT_SOFT, false);
+        drawFit(g, tr("choose"), x + 10, y + 55, allX() - 4 - (x + 10), TEXT_SOFT);
+        button(g, allX(), y + MODE_Y, allW(), MODE_H, tr("select_all"), true, inBox(mx, my, allX(), y + MODE_Y, allW(), MODE_H), false);
+        button(g, noneX(), y + MODE_Y, noneW(), MODE_H, tr("select_none"), true, inBox(mx, my, noneX(), y + MODE_Y, noneW(), MODE_H), false);
         if (st.allowCopy) segmented(g, x + MODE_X, y + MODE_Y, mx, my);
 
         // lista
@@ -571,9 +628,11 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
                 }
                 return true;
             }
+            if (inBox(mx, my, allX(), y + MODE_Y, allW(), MODE_H)) { selectAll(); remember(); click(); return true; }
+            if (inBox(mx, my, noneX(), y + MODE_Y, noneW(), MODE_H)) { selected.clear(); splitIdx.clear(); remember(); click(); return true; }
             if (menu.getSettings().allowCopy && inBox(mx, my, x + MODE_X, y + MODE_Y, MODE_W, MODE_H)) {
                 boolean wantCopy = mx >= x + MODE_X + MODE_W / 2;
-                if (wantCopy != curCopy) { curCopy = wantCopy; click(); } // solo cambia el modo de los SIGUIENTES; lo ya elegido no se toca
+                if (wantCopy != curCopy) { curCopy = wantCopy; remember(); click(); } // solo cambia el modo de los SIGUIENTES; lo ya elegido no se toca
                 return true;
             }
             int row = rowAt(mx, my);
@@ -587,11 +646,13 @@ public class TransferScreen extends AbstractContainerScreen<TransferMenu> {
                     } else {
                         selected.remove(id);
                         splitIdx.remove(id);
+                        remember();
                     }
                     click();
                 } else if (selectable(e.getKey())) {
                     selected.put(id, curCopy);
                     splitIdx.remove(id);
+                    remember();
                     click();
                 }
                 return true;

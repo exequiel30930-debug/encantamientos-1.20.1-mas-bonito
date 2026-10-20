@@ -3,6 +3,7 @@ package com.example.set;
 import com.example.set.menu.TransferMenu;
 import com.mojang.logging.LogUtils;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -23,10 +24,12 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -64,6 +67,20 @@ public class AnvilHandler {
         return n >= 1 && right.getCount() >= 2 && canSplit(left);
     }
 
+    /**
+     * Objeto con encantamientos a la izquierda y OTRO objeto enchantable (de distinto tipo) a la derecha: se pueden pasar encantamientos
+     * directamente al segundo objeto. Dos objetos iguales los sigue combinando el yunque vanilla. Hace falta al menos 1 encantamiento transferible.
+     */
+    public static boolean isTargetInput(ItemStack left, ItemStack right) {
+        if (left.isEmpty() || left.getCount() != 1 || right.isEmpty() || right.getCount() != 1) return false;
+        if (left.is(Items.BOOK) || right.is(Items.BOOK) || right.is(Items.ENCHANTED_BOOK)) return false;
+        if (left.getItem() == right.getItem()) return false;
+        if (!(right.isEnchantable() || right.isEnchanted())) return false;
+        for (Enchantment e : EnchantmentHelper.getEnchantments(left).keySet())
+            if (TransferMenu.targetDeny(e, right) == 0) return true;
+        return false;
+    }
+
     private static String describe(ItemStack s) {
         if (s.isEmpty()) return "empty";
         return ForgeRegistries.ITEMS.getKey(s.getItem()) + " x" + s.getCount() + " [enchantments=" + EnchantmentHelper.getEnchantments(s).size() + "]";
@@ -78,15 +95,18 @@ public class AnvilHandler {
             if (log) LOGGER.info("[SET] ignored: another mod already set an output ({})", event.getOutput());
             return;
         }
-        if (!isTransferInput(left, right)) {
+        boolean targetMode = !right.is(Items.BOOK) && isTargetInput(left, right);
+        if (!targetMode && !isTransferInput(left, right)) {
             if (log) LOGGER.info("[SET] rejected: left={} right={} (needs at least {} enchantments)", describe(left), describe(right), SetConfig.minEnchantments());
             return;
         }
         if (log) LOGGER.info("[SET] accepted: left={}", describe(left));
 
         ItemStack preview = new ItemStack(Items.ENCHANTED_BOOK);
-        for (Map.Entry<Enchantment, Integer> entry : EnchantmentHelper.getEnchantments(left).entrySet())
+        for (Map.Entry<Enchantment, Integer> entry : EnchantmentHelper.getEnchantments(left).entrySet()) {
+            if (targetMode && TransferMenu.targetDeny(entry.getKey(), right) != 0) continue; // solo los que el destino admite
             EnchantedBookItem.addEnchantment(preview, new EnchantmentInstance(entry.getKey(), entry.getValue()));
+        }
         preview.getOrCreateTag().putBoolean(PREVIEW_TAG, true);
         preview.setHoverName(Component.translatable("item.selective_enchantment_transfer.preview"));
         event.setOutput(preview);
@@ -112,15 +132,18 @@ public class AnvilHandler {
         if (!(player.containerMenu instanceof AnvilMenu menu)) return;
         ItemStack left = menu.getSlot(0).getItem();
         ItemStack right = menu.getSlot(1).getItem();
-        if (!isTransferInput(left, right)) return;
+        boolean bookMode = isTransferInput(left, right);
+        if (!bookMode && !isTargetInput(left, right)) return;
         event.setBreakChance(0.0F); // esta accion no desgasta el yunque
         removePreviews(player);     // ya, antes de que se pueda guardar o mover
-        pending.add(new Pending(player, left.copy(), new ItemStack(Items.BOOK)));
+        pending.add(new Pending(player, left.copy(), bookMode ? new ItemStack(Items.BOOK) : right.copy()));
     }
 
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || pending.isEmpty()) return;
+        if (event.phase != TickEvent.Phase.END) return;
+        if (SetConfig.resetPriorWork()) resetPriorWork(ServerLifecycleHooks.getCurrentServer());
+        if (pending.isEmpty()) return;
         List<Pending> work = new ArrayList<>(pending);
         pending.clear();
         for (Pending p : work) {
@@ -143,6 +166,16 @@ public class AnvilHandler {
                 TransferMenu.give(player, p.tool());
                 TransferMenu.give(player, p.book());
             }
+        }
+    }
+
+    /** Opcion "sin penalizacion": lo que hay en la ranura de resultado de cualquier yunque sale con la penalizacion por trabajo previo a 0. */
+    private static void resetPriorWork(MinecraftServer server) {
+        if (server == null) return;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (!(player.containerMenu instanceof AnvilMenu menu)) continue;
+            ItemStack out = menu.getSlot(2).getItem();
+            if (!out.isEmpty() && !isPreview(out) && out.getBaseRepairCost() != 0) out.setRepairCost(0);
         }
     }
 

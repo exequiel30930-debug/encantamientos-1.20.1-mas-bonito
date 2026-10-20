@@ -87,5 +87,14 @@
   "gui.selective_enchantment_transfer.why.books": "Faltan libros: necesitas %s y tienes %s.",
   "gui.selective_enchantment_transfer.why.break": "Copiar rompería el objeto: le quedan %s de durabilidad y la copia gasta %s.",
   "gui.selective_enchantment_transfer.why.xp": "No tienes experiencia suficiente: necesitas %s niveles y tienes %s.",
-  "message.selective_enchantment_transfer.cant_split": "%s no se puede separar: solo tiene un nivel."
+  "message.selective_enchantment_transfer.cant_split": "%s no se puede separar: solo tiene un nivel.",
+  "gui.selective_enchantment_transfer.target": "Destino",
+  "gui.selective_enchantment_transfer.select_all": "Todo",
+  "gui.selective_enchantment_transfer.select_none": "Nada",
+  "gui.selective_enchantment_transfer.deny.target_4": "El objeto destino no admite ese encantamiento",
+  "gui.selective_enchantment_transfer.deny.target_5": "Choca con un encantamiento que el destino ya tiene",
+  "gui.selective_enchantment_transfer.deny.target_6": "El destino ya tiene este encantamiento",
+  "gui.selective_enchantment_transfer.deny.target_7": "Choca con otro encantamiento elegido",
+  "gui.selective_enchantment_transfer.config.reset_penalty": "Reiniciar penalización: %s",
+  "gui.selective_enchantment_transfer.config.reset_penalty.desc": "Lo que saques de cualquier yunque queda con la penalización por trabajo previo a 0, así que reparar nunca se encarece. El límite «Demasiado caro» de vanilla no se puede quitar desde aquí."
 }

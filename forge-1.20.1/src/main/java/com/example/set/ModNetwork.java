@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class ModNetwork {
-    private static final String PROTOCOL = "8";
+    private static final String PROTOCOL = "9";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(SelectiveEnchantmentTransfer.MODID, "main"),
             () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);

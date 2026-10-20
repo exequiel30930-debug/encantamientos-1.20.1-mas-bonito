@@ -83,6 +83,15 @@ public class TransferMenu extends AbstractContainerMenu {
         return books;
     }
 
+    /** Objeto destino (en vez de un libro): 0 = admite el encantamiento; 4 = no lo admite; 5 = choca con uno que ya tiene; 6 = ya lo tiene. */
+    public static int targetDeny(Enchantment e, ItemStack target) {
+        Map<Enchantment, Integer> existing = EnchantmentHelper.getEnchantments(target);
+        if (existing.containsKey(e)) return 6;
+        if (!e.canEnchant(target)) return 4;
+        for (Enchantment other : existing.keySet()) if (!e.isCompatibleWith(other)) return 5;
+        return 0;
+    }
+
     /** Libros normales en el inventario del jugador (se gastan al transferir si hacen falta mas de uno). */
     public static int countBooks(Inventory inv) {
         int n = 0;
@@ -229,6 +238,9 @@ public class TransferMenu extends AbstractContainerMenu {
     public SetConfig.Settings getSettings() { return settings; }
     public void setSettings(SetConfig.Settings settings) { this.settings = settings; }
     public ItemStack getSource() { return inputs.getItem(0); }
+    /** true si la ranura de la derecha tiene un objeto destino (y no un libro normal). */
+    public boolean isTargetMode() { return !inputs.getItem(1).isEmpty() && !inputs.getItem(1).is(Items.BOOK); }
+    public ItemStack getTarget() { return inputs.getItem(1); }
     /** Libros normales disponibles: el de la ranura mas los del inventario (solo se gastan los que hagan falta). */
     public int getBookCount() { return inputs.getItem(1).getCount() + countBooks(playerInv); }
 
@@ -252,16 +264,18 @@ public class TransferMenu extends AbstractContainerMenu {
     }
 
     /**
-     * Cada encantamiento elegido se MUEVE o se COPIA (nunca las dos cosas a la vez) y sus niveles pueden repartirse en varios
-     * libros (Filo III = 2+1 -> un libro con Filo II y otro con Filo I). Los no repartidos van juntos en un libro.
-     * Se gasta un libro normal por libro de salida: primero el de la ranura y luego los del inventario.
+     * Cada encantamiento elegido se MUEVE o se COPIA (nunca las dos cosas a la vez).
+     * - Con un libro normal: sus niveles pueden repartirse en varios libros (Filo III = 2+1 -> un libro con Filo II y otro con Filo I);
+     *   los no repartidos van juntos en un libro. Se gasta un libro normal por libro de salida (primero el de la ranura, luego los del inventario).
+     * - Con un objeto destino: los encantamientos se ponen directamente en ese objeto (sin repartir).
      */
     public void transferSelected(ServerPlayer player, List<Pick> picks) {
         if (finished || picks == null || picks.isEmpty()) return;
         SetConfig.Settings s = SetConfig.Settings.fromConfig(); // siempre los valores reales del servidor
         ItemStack source = inputs.getItem(0);
-        ItemStack book = inputs.getItem(1);
-        if (source.isEmpty() || !book.is(Items.BOOK)) return;
+        ItemStack book = inputs.getItem(1); // libro normal u objeto destino
+        if (source.isEmpty() || book.isEmpty()) return;
+        boolean targetMode = !book.is(Items.BOOK);
 
         Map<Enchantment, Integer> all = new LinkedHashMap<>(EnchantmentHelper.getEnchantments(source));
         Map<Enchantment, Integer> moved = new LinkedHashMap<>();
@@ -280,21 +294,28 @@ public class TransferMenu extends AbstractContainerMenu {
             int sum = 0;
             for (int part : parts) { if (part < 1) return; sum += part; }
             if (parts.length < 1 || parts.length > MAX_BOOKS || sum != found.getValue().intValue()) return;
+            if (targetMode && (parts.length != 1 || targetDeny(found.getKey(), book) != 0)) return; // al destino no se reparte
             partsOf.put(found.getKey(), parts.clone());
             if (pick.copy()) copied.put(found.getKey(), found.getValue());
             else { moved.put(found.getKey(), found.getValue()); if (parts.length > 1) anySplitMoved = true; }
         }
         if (moved.isEmpty() && copied.isEmpty()) return;
+        if (targetMode) { // los elegidos tampoco pueden chocar entre si
+            List<Enchantment> chosen = new ArrayList<>(partsOf.keySet());
+            for (int i = 0; i < chosen.size(); i++)
+                for (int j = i + 1; j < chosen.size(); j++)
+                    if (!chosen.get(i).isCompatibleWith(chosen.get(j))) return;
+        }
 
-        List<Map<Enchantment, Integer>> bookContents = buildBooks(partsOf);
+        List<Map<Enchantment, Integer>> bookContents = targetMode ? new ArrayList<Map<Enchantment, Integer>>() : buildBooks(partsOf);
         int booksNeeded = bookContents.size();
-        if (booksNeeded < 1 || booksNeeded > 64 || booksNeeded > book.getCount() + countBooks(player.getInventory())) {
+        if (!targetMode && (booksNeeded < 1 || booksNeeded > 64 || booksNeeded > book.getCount() + countBooks(player.getInventory()))) {
             player.displayClientMessage(Component.translatable("message.selective_enchantment_transfer.not_enough_books"), true);
             return;
         }
         // mover TODO de un libro encantado sin repartir nada solo daria el mismo libro: no se permite
         boolean sourceIsBook = source.is(Items.ENCHANTED_BOOK);
-        if (sourceIsBook && !moved.isEmpty() && moved.size() >= all.size() && !anySplitMoved) return;
+        if (!targetMode && sourceIsBook && !moved.isEmpty() && moved.size() >= all.size() && !anySplitMoved) return;
         if (!copied.isEmpty() && !canPayWear(s, source, copied)) {
             player.displayClientMessage(Component.translatable("message.selective_enchantment_transfer.not_enough_durability"), true);
             return;
@@ -308,11 +329,20 @@ public class TransferMenu extends AbstractContainerMenu {
         if (!player.getAbilities().instabuild && cost > 0) player.giveExperienceLevels(-cost);
 
         List<ItemStack> outputs = new ArrayList<>();
-        for (Map<Enchantment, Integer> contents : bookContents) {
-            ItemStack out = new ItemStack(Items.ENCHANTED_BOOK);
-            for (Map.Entry<Enchantment, Integer> entry : contents.entrySet())
-                EnchantedBookItem.addEnchantment(out, new EnchantmentInstance(entry.getKey(), entry.getValue()));
-            outputs.add(out);
+        ItemStack targetResult = ItemStack.EMPTY;
+        if (targetMode) {
+            targetResult = book.copy();
+            Map<Enchantment, Integer> merged = new LinkedHashMap<>(EnchantmentHelper.getEnchantments(targetResult));
+            merged.putAll(moved);
+            merged.putAll(copied);
+            EnchantmentHelper.setEnchantments(merged, targetResult);
+        } else {
+            for (Map<Enchantment, Integer> contents : bookContents) {
+                ItemStack out = new ItemStack(Items.ENCHANTED_BOOK);
+                for (Map.Entry<Enchantment, Integer> entry : contents.entrySet())
+                    EnchantedBookItem.addEnchantment(out, new EnchantmentInstance(entry.getKey(), entry.getValue()));
+                outputs.add(out);
+            }
         }
 
         boolean discardSource = false;
@@ -328,21 +358,28 @@ public class TransferMenu extends AbstractContainerMenu {
             if (wear > 0) source.setDamageValue(source.getDamageValue() + wear);
         }
 
-        // libros normales: primero el de la ranura, el resto del inventario (ya comprobado que hay)
-        int fromSlot = Math.min(booksNeeded, book.getCount());
-        removeBooks(player.getInventory(), booksNeeded - fromSlot);
-        ItemStack unusedBooks = book.copy();
-        unusedBooks.shrink(fromSlot);
+        ItemStack unusedBooks = ItemStack.EMPTY;
+        if (!targetMode) {
+            // libros normales: primero el de la ranura, el resto del inventario (ya comprobado que hay)
+            int fromSlot = Math.min(booksNeeded, book.getCount());
+            removeBooks(player.getInventory(), booksNeeded - fromSlot);
+            unusedBooks = book.copy();
+            unusedBooks.shrink(fromSlot);
+        }
         inputs.setItem(0, ItemStack.EMPTY);
         inputs.setItem(1, ItemStack.EMPTY);
         finished = true;
         if (!discardSource) give(player, source);
-        for (ItemStack out : outputs) give(player, out);
-        give(player, unusedBooks);
+        if (targetMode) {
+            give(player, targetResult);
+        } else {
+            for (ItemStack out : outputs) give(player, out);
+            give(player, unusedBooks);
+        }
         if (s.sounds) player.level().playSound(null, player.blockPosition(), SoundEvents.ANVIL_USE, SoundSource.BLOCKS, 1.0F, 1.0F);
         ModAdvancements.award(player, "first_transfer");
         if (!copied.isEmpty()) ModAdvancements.award(player, "copy_cat");
-        if (sourceIsBook && (!moved.isEmpty() || booksNeeded > 1)) ModAdvancements.award(player, "split_book");
+        if (!targetMode && sourceIsBook && (!moved.isEmpty() || booksNeeded > 1)) ModAdvancements.award(player, "split_book");
         if (cost >= 30 && !player.getAbilities().instabuild) ModAdvancements.award(player, "heavy_lifting");
         player.closeContainer();
     }

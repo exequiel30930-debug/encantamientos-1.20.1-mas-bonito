@@ -53,6 +53,7 @@ public final class SetConfig {
     private static final ForgeConfigSpec.IntValue COPY_BASE_WEAR;
     private static final ForgeConfigSpec.ConfigValue<List<? extends String>> COPY_WEAR;
     private static final ForgeConfigSpec.BooleanValue SOUNDS;
+    private static final ForgeConfigSpec.BooleanValue RESET_PRIOR_WORK;
     private static final ForgeConfigSpec.BooleanValue DEBUG_LOG;
 
     static {
@@ -101,6 +102,11 @@ public final class SetConfig {
                         "Format: \"namespace:enchantment=percent\". Items without durability (enchanted books) cannot copy these enchantments.")
                 .defineList("copyWear", DEFAULT_WEAR, o -> o instanceof String);
         b.pop();
+        b.push("anvil");
+        RESET_PRIOR_WORK = b.comment("Whatever you take out of ANY anvil operation gets its 'prior work' penalty reset to 0, so repairs never get more expensive.",
+                        "(Vanilla's 'Too Expensive!' limit is hardcoded in the anvil and cannot be removed from here.)")
+                .define("resetPriorWork", false);
+        b.pop();
         b.push("visuals");
         SOUNDS = b.comment("Play the anvil sound when a transfer is completed.")
                 .define("sounds", true);
@@ -123,6 +129,7 @@ public final class SetConfig {
     public static double copyCostMultiplier() { try { return COPY_COST_MULTIPLIER.get(); } catch (IllegalStateException e) { return 3.0D; } }
     public static boolean allowCopyTreasure() { try { return ALLOW_COPY_TREASURE.get(); } catch (IllegalStateException e) { return true; } }
     public static boolean debugLog() { try { return DEBUG_LOG.get(); } catch (IllegalStateException e) { return false; } }
+    public static boolean resetPriorWork() { try { return RESET_PRIOR_WORK.get(); } catch (IllegalStateException e) { return false; } }
     public static boolean soundsEnabled() { try { return SOUNDS.get(); } catch (IllegalStateException e) { return true; } }
 
     private static List<? extends String> listValue(ForgeConfigSpec.ConfigValue<List<? extends String>> value, List<? extends String> fallback) {
@@ -187,6 +194,7 @@ public final class SetConfig {
         public int autoTreasureWear = 35;
         public int copyBaseWear = 30;
         public boolean sounds = true;
+        public boolean resetPriorWork = false;
         /** id del encantamiento -> precio por nivel (sustituye al automatico). */
         public Map<String, Double> priceOverrides = new LinkedHashMap<String, Double>();
         /** encantamientos que no se pueden mover ni copiar. */
@@ -211,6 +219,7 @@ public final class SetConfig {
             try { s.autoTreasureWear = AUTO_TREASURE_WEAR.get(); } catch (IllegalStateException e) { /* por defecto */ }
             try { s.copyBaseWear = COPY_BASE_WEAR.get(); } catch (IllegalStateException e) { /* por defecto */ }
             s.sounds = soundsEnabled();
+            s.resetPriorWork = resetPriorWork();
             s.priceOverrides = parseDoubles(listValue(PRICE_OVERRIDES, new ArrayList<String>()));
             s.blocked = parseIds(listValue(BLOCKED, new ArrayList<String>()));
             s.copyWear = parseInts(listValue(COPY_WEAR, DEFAULT_WEAR));
@@ -224,7 +233,7 @@ public final class SetConfig {
             minEnchantments = o.minEnchantments; allowCopy = o.allowCopy;
             copyCostMultiplier = o.copyCostMultiplier; allowCopyTreasure = o.allowCopyTreasure;
             copyWearEnabled = o.copyWearEnabled; copyWearMultiplier = o.copyWearMultiplier; autoTreasureWear = o.autoTreasureWear; copyBaseWear = o.copyBaseWear;
-            sounds = o.sounds;
+            sounds = o.sounds; resetPriorWork = o.resetPriorWork;
             priceOverrides = new LinkedHashMap<String, Double>(o.priceOverrides);
             blocked = new LinkedHashSet<String>(o.blocked);
             copyWear = new LinkedHashMap<String, Integer>(o.copyWear);
@@ -266,6 +275,7 @@ public final class SetConfig {
                 AUTO_TREASURE_WEAR.set(autoTreasureWear);
                 COPY_BASE_WEAR.set(copyBaseWear);
                 SOUNDS.set(sounds);
+                RESET_PRIOR_WORK.set(resetPriorWork);
                 PRICE_OVERRIDES.set(doublesToList(priceOverrides));
                 BLOCKED.set(new ArrayList<String>(blocked));
                 COPY_WEAR.set(intsToList(copyWear));

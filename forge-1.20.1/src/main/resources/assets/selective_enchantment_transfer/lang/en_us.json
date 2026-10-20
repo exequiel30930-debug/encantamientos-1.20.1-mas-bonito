@@ -87,5 +87,14 @@
   "gui.selective_enchantment_transfer.why.books": "Not enough books: you need %s and have %s.",
   "gui.selective_enchantment_transfer.why.break": "Copying would break the item: it has %s durability left and the copy costs %s.",
   "gui.selective_enchantment_transfer.why.xp": "Not enough experience: you need %s levels and have %s.",
-  "message.selective_enchantment_transfer.cant_split": "%s can't be split: it only has one level."
+  "message.selective_enchantment_transfer.cant_split": "%s can't be split: it only has one level.",
+  "gui.selective_enchantment_transfer.target": "Target",
+  "gui.selective_enchantment_transfer.select_all": "All",
+  "gui.selective_enchantment_transfer.select_none": "None",
+  "gui.selective_enchantment_transfer.deny.target_4": "The target item can't take that enchantment",
+  "gui.selective_enchantment_transfer.deny.target_5": "Conflicts with an enchantment the target already has",
+  "gui.selective_enchantment_transfer.deny.target_6": "The target already has this enchantment",
+  "gui.selective_enchantment_transfer.deny.target_7": "Conflicts with another selected enchantment",
+  "gui.selective_enchantment_transfer.config.reset_penalty": "Reset anvil penalty: %s",
+  "gui.selective_enchantment_transfer.config.reset_penalty.desc": "Whatever you take out of an anvil gets its 'prior work' penalty reset to 0, so repairs never get more expensive. Vanilla's 'Too Expensive!' limit can't be removed from here."
 }

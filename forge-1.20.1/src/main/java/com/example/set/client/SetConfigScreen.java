@@ -72,6 +72,7 @@ public class SetConfigScreen extends Screen {
         opts.add(new Opt("wear_mult", () -> wmult(s.copyWearMultiplier),
                 () -> s.copyWearMultiplier = cycle(WEAR_STEPS, s.copyWearMultiplier, true),
                 () -> s.copyWearMultiplier = cycle(WEAR_STEPS, s.copyWearMultiplier, false), () -> s.allowCopy && s.copyWearEnabled));
+        opts.add(toggle("reset_penalty", () -> s.resetPriorWork, () -> s.resetPriorWork = !s.resetPriorWork, () -> true));
     }
 
     // ---------- textos y valores ----------
@@ -199,6 +200,7 @@ public class SetConfigScreen extends Screen {
             case "max_cost": s.maxTotalCost = d.maxTotalCost; break;
             case "min_ench": s.minEnchantments = d.minEnchantments; break;
             case "sounds": s.sounds = d.sounds; break;
+            case "reset_penalty": s.resetPriorWork = d.resetPriorWork; break;
             case "allow_copy": s.allowCopy = d.allowCopy; break;
             case "copy_mult": s.copyCostMultiplier = d.copyCostMultiplier; break;
             case "copy_treasure": s.allowCopyTreasure = d.allowCopyTreasure; break;
@@ -219,7 +221,7 @@ public class SetConfigScreen extends Screen {
 
     // ---------- inicializacion ----------
     @Override protected void init() {
-        int blockH = 6 * ROW_H + 8 + BTN_H + 14;
+        int blockH = 7 * ROW_H + 8 + BTN_H + 14;
         topY = Math.max(44, (height - blockH) / 2 + 16);
         titleY = topY - 30;
         leftX = width / 2 - BTN_W - 5;
@@ -229,7 +231,7 @@ public class SetConfigScreen extends Screen {
             o.x = i < 6 ? leftX : rightX;
             o.y = topY + (i % 6) * ROW_H;
         }
-        saveY = topY + 6 * ROW_H + 8;
+        saveY = topY + 7 * ROW_H + 8;
         panW = BTN_W * 2 + 10 + 28;
         panX = width / 2 - panW / 2;
         panY = titleY - 9;
@@ -267,7 +269,7 @@ public class SetConfigScreen extends Screen {
             if (hover) hovered = o;
             button(g, o.x, o.y, BTN_W, BTN_H, labelText(o), isOn(o), hover && isOn(o), false);
         }
-        button(g, rightX, topY + 5 * ROW_H, BTN_W, BTN_H, tr("config.reset"), true, inBox(mx, my, rightX, topY + 5 * ROW_H, BTN_W, BTN_H), false);
+        button(g, leftX, topY + 6 * ROW_H, BTN_W * 2 + 10, BTN_H, tr("config.reset"), true, inBox(mx, my, leftX, topY + 6 * ROW_H, BTN_W * 2 + 10, BTN_H), false);
         button(g, leftX, saveY, BTN_W, BTN_H, tr("config.save"), true, inBox(mx, my, leftX, saveY, BTN_W, BTN_H), true);
         button(g, rightX, saveY, BTN_W, BTN_H, tr("config.cancel"), true, inBox(mx, my, rightX, saveY, BTN_W, BTN_H), false);
 
@@ -286,7 +288,7 @@ public class SetConfigScreen extends Screen {
                     return true;
                 }
             }
-            if (inBox(mx, my, rightX, topY + 5 * ROW_H, BTN_W, BTN_H)) {
+            if (inBox(mx, my, leftX, topY + 6 * ROW_H, BTN_W * 2 + 10, BTN_H)) {
                 s.copyFrom(SetConfig.Settings.defaults());
                 click();
                 return true;

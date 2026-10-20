@@ -17,6 +17,7 @@ public final class SettingsCodec {
         buf.writeDouble(s.copyCostMultiplier);
         buf.writeBoolean(s.allowCopyTreasure);
         buf.writeBoolean(s.sounds);
+        buf.writeBoolean(s.resetPriorWork);
         buf.writeBoolean(s.copyWearEnabled);
         buf.writeDouble(s.copyWearMultiplier);
         buf.writeVarInt(s.autoTreasureWear);
@@ -39,6 +40,7 @@ public final class SettingsCodec {
         s.copyCostMultiplier = buf.readDouble();
         s.allowCopyTreasure = buf.readBoolean();
         s.sounds = buf.readBoolean();
+        s.resetPriorWork = buf.readBoolean();
         s.copyWearEnabled = buf.readBoolean();
         s.copyWearMultiplier = buf.readDouble();
         s.autoTreasureWear = buf.readVarInt();

@@ -23,13 +23,18 @@ Ingles (`en_us`) y espanol de Espana (`es_es`). Con cualquier otro idioma del ju
    Filo III puede ir en 1 libro (3), en 2 libros (2+1: uno con Filo II y otro con Filo I) o en 3 libros (1+1+1). Los encantamientos que no repartes van juntos en un mismo libro.
    Se gasta un libro normal por libro de salida: el de la ranura del yunque y, si hacen falta mas, los de tu inventario (solo al confirmar).
    Si el origen es un libro encantado y mueves todo, el libro de origen se consume; hace falta repartir al menos uno (si no, saldria el mismo libro).
-5. Si cancelas, recuperas todo y no pagas nada.
+5. **Mover a otro objeto (sin libro)**: pon el objeto con encantamientos a la izquierda y **otro objeto enchantable de distinto tipo** a la derecha (por ejemplo una espada de diamante y una de netherita).
+   La pantalla funciona igual, pero los encantamientos se ponen directamente en el segundo objeto (no se reparten en libros). Solo se pueden elegir los que el destino admite, que no choquen
+   con los que ya tiene ni entre si, y que el destino no tenga ya. Dos objetos del mismo tipo los sigue combinando el yunque vanilla.
+6. Botones **Todo** / **Nada** para marcar o desmarcar todo de una vez. La pantalla **recuerda el ultimo modo y los encantamientos que elegiste** (mientras el juego este abierto)
+   y los vuelve a marcar en el siguiente objeto si los tiene.
+7. Si cancelas, recuperas todo y no pagas nada.
 
 ## Precios (niveles de XP)
 Por encantamiento (mover): `peso x nivel`, con peso comun 1.0 · poco comun 1.5 · raro 2.0 · muy raro 3.0, **+4** si es de tesoro. Minimo 1, tope total 39.
 Ejemplos: Afilado V 5 · Eficiencia V 5 · Irrompibilidad III 5 · Fortuna III 6 · Toque de seda 3 · Reparacion 6.
 Copiar = precio de mover x 3.
-Configurable en `serverconfig/selective_enchantment_transfer-server.toml`: `xpCostEnabled`, `costMultiplier`, `maxTotalCost`, `allowCopy`, `copyCostMultiplier`, `allowCopyTreasure`, `sounds`, `debugLog`.
+Configurable en `serverconfig/selective_enchantment_transfer-server.toml`: `xpCostEnabled`, `costMultiplier`, `maxTotalCost`, `allowCopy`, `copyCostMultiplier`, `allowCopyTreasure`, `sounds`, `resetPriorWork`, `debugLog`.
 
 ## Menu de ajustes (dentro del juego)
 En la pantalla de transferencia hay un boton **Ajustes** (arriba a la derecha). Abre un menu con el mismo estilo arcano que la pantalla de transferencia:
@@ -52,6 +57,10 @@ En `serverconfig/selective_enchantment_transfer-server.toml`:
 - `autoTreasureWear = 35` desgaste automatico para los encantamientos de tesoro que NO esten en la lista (cubre los de otros mods).
 - `copyWearEnabled` y `copyWearMultiplier` activan/escalan el desgaste (tambien en el menu de ajustes).
 Mover un encantamiento nunca desgasta el objeto; el desgaste solo existe al copiar.
+
+## Opcion del yunque (apagada por defecto)
+`resetPriorWork` (tambien en Ajustes > Reiniciar penalizacion): lo que sacas de cualquier yunque queda con la penalizacion por trabajo previo a 0, asi que reparar no se encarece.
+El limite "Demasiado caro" de vanilla no se puede quitar con este mod (esta fijo dentro del yunque).
 
 ## Atajo de teclado
 En Opciones > Controles, categoria "Transferencia selectiva": **Abrir ajustes del mod** (por defecto la tecla K, se puede cambiar).
